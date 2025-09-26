@@ -21,14 +21,16 @@ return new class extends Migration
             $table->boolean('is_read')->default(false);
             $table->timestamp('read_at')->nullable();
             $table->string('message_type')->default('direct'); // direct, job_related, system
-            $table->foreignId('job_id')->nullable()->constrained()->onDelete('cascade');
+            // CHANGED: Reference job_postings instead of jobs
+            $table->foreignId('job_posting_id')->nullable()->constrained('job_postings')->onDelete('cascade');
             $table->foreignId('application_id')->nullable()->constrained('job_applications')->onDelete('cascade');
             $table->timestamps();
             $table->softDeletes();
 
             $table->index(['sender_id', 'recipient_id']);
             $table->index(['recipient_id', 'is_read']);
-            $table->index(['job_id', 'message_type']);
+            // CHANGED: Update index
+            $table->index(['job_posting_id', 'message_type']);
             $table->index('created_at');
         });
     }

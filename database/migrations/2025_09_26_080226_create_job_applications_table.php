@@ -10,10 +10,11 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up(): void
-    {
+     {
         Schema::create('job_applications', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('job_id')->constrained()->onDelete('cascade');
+            // CHANGED: Reference job_postings instead of jobs
+            $table->foreignId('job_posting_id')->constrained('job_postings')->onDelete('cascade');
             $table->foreignId('talent_id')->constrained('users')->onDelete('cascade');
             $table->text('cover_letter')->nullable();
             $table->json('answers')->nullable(); // Answers to application questions
@@ -30,7 +31,8 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            $table->unique(['job_id', 'talent_id']);
+            // CHANGED: Update unique constraint
+            $table->unique(['job_posting_id', 'talent_id']);
             $table->index(['status', 'created_at']);
             $table->index('reviewed_at');
         });
