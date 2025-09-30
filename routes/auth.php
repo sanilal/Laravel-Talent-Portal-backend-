@@ -1,10 +1,10 @@
 <?php
 
-
 use App\Http\Controllers\Auth\AuthenticationController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\TwoFactorController;
 use App\Http\Controllers\Auth\SocialAuthController;
+use App\Http\Controllers\Api\Auth\ApiAuthController; 
 use Illuminate\Support\Facades\Route;
 
 // Authentication Routes
@@ -78,11 +78,6 @@ Route::post('/logout', [AuthenticationController::class, 'logout'])
     ->middleware('auth')
     ->name('logout');
 
-// API Authentication Routes
-// routes/api.php
-use App\Http\Controllers\Api\Auth\ApiAuthController;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
 
 // Public API Routes
 Route::prefix('auth')->group(function () {
