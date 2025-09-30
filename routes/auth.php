@@ -4,7 +4,6 @@ use App\Http\Controllers\Auth\AuthenticationController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\TwoFactorController;
 use App\Http\Controllers\Auth\SocialAuthController;
-use App\Http\Controllers\Api\Auth\ApiAuthController; 
 use Illuminate\Support\Facades\Route;
 
 // Authentication Routes
@@ -29,7 +28,7 @@ Route::middleware('guest')->group(function () {
     Route::post('/reset-password', [PasswordResetController::class, 'resetPassword'])
         ->name('password.store');
 
-    // Social Authentication (prepare for future)
+    // Social Authentication
     Route::get('/auth/{provider}', [SocialAuthController::class, 'redirect'])
         ->name('social.redirect')
         ->where('provider', 'google|linkedin');
@@ -78,38 +77,7 @@ Route::post('/logout', [AuthenticationController::class, 'logout'])
     ->middleware('auth')
     ->name('logout');
 
-
-// Public API Routes
-Route::prefix('auth')->group(function () {
-    Route::post('/register', [ApiAuthController::class, 'register']);
-    Route::post('/login', [ApiAuthController::class, 'login']);
-    Route::post('/two-factor', [ApiAuthController::class, 'verifyTwoFactor'])
-        ->middleware('auth:sanctum');
-});
-
-// Protected API Routes
-Route::middleware(['auth:sanctum', 'api.auth'])->group(function () {
-    // User management
-    Route::get('/me', [ApiAuthController::class, 'me']);
-    Route::post('/refresh', [ApiAuthController::class, 'refresh']);
-    Route::post('/logout', [ApiAuthController::class, 'logout']);
-    Route::post('/logout-all', [ApiAuthController::class, 'logoutAll']);
-    
-    // Session management
-    Route::get('/sessions', [ApiAuthController::class, 'sessions']);
-    Route::delete('/sessions/{tokenId}', [ApiAuthController::class, 'revokeSession']);
-    
-    // Two-factor authentication
-    Route::post('/two-factor/setup', [ApiAuthController::class, 'setupTwoFactor']);
-    Route::post('/two-factor/confirm', [ApiAuthController::class, 'confirmTwoFactor']);
-    Route::delete('/two-factor', [ApiAuthController::class, 'disableTwoFactor']);
-    
-    // Password management
-    Route::post('/change-password', [ApiAuthController::class, 'changePassword']);
-});
-
-// Role-based dashboard routes
-// routes/web.php (dashboard section)
+// Role-based Dashboard Routes
 Route::middleware(['auth', 'verified', 'account.status'])->group(function () {
     // General dashboard (fallback)
     Route::get('/dashboard', function () {
