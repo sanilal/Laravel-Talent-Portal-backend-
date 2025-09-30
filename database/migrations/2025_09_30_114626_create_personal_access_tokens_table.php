@@ -1,5 +1,4 @@
 <?php
-
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -8,7 +7,7 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
-     * 
+     *
      * This is Laravel Sanctum's token table for API authentication
      */
     public function up(): void
@@ -18,6 +17,7 @@ return new class extends Migration
             $table->id();
             
             // Polymorphic relation to tokenable model (User)
+            // This automatically creates the index, so no need to add it manually
             $table->uuidMorphs('tokenable');
             
             // Token name/identifier
@@ -27,7 +27,6 @@ return new class extends Migration
             $table->string('token', 64)->unique();
             
             // Token abilities/scopes (JSON array)
-            // Example: ["talent:read", "talent:write", "project:apply"]
             $table->text('abilities')->nullable();
             
             // Track last usage for security and analytics
@@ -39,8 +38,9 @@ return new class extends Migration
             // Timestamps
             $table->timestamps();
             
-            // Indexes for performance
-            $table->index(['tokenable_type', 'tokenable_id']);
+            // Additional indexes for performance
+            // REMOVED: $table->index(['tokenable_type', 'tokenable_id']); 
+            // (already created by uuidMorphs above)
             $table->index('last_used_at');
             $table->index('expires_at');
         });
