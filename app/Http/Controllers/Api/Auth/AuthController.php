@@ -16,63 +16,41 @@ class AuthController extends Controller
      * Register a new user (Talent or Recruiter)
      */
     public function register(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => ['required', 'confirmed', Password::min(8)
-                ->mixedCase()
-                ->numbers()
-                ->symbols()],
-            'role' => 'required|in:talent,recruiter',
-            'phone' => 'nullable|string|max:20',
-            
-            // Conditional validation based on role
-            'company_name' => 'required_if:role,recruiter|string|max:255',
-            'category_id' => 'required_if:role,talent|uuid|exists:categories,id',
-        ]);
+{
+    $validator = Validator::make($request->all(), [
+        'first_name' => 'required|string|max:255',
+        'last_name' => 'required|string|max:255',
+        'email' => 'required|string|email|max:255|unique:users',
+        'password' => ['required', 'confirmed', Password::min(8)
+            ->mixedCase()
+            ->numbers()
+            ->symbols()],
+        'role' => 'required|in:talent,recruiter',
+        'phone' => 'nullable|string|max:20',
 
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Validation failed',
-                'errors' => $validator->errors()
-            ], 422);
-        }
+        // Conditional validation based on role
+        'company_name' => 'required_if:role,recruiter|string|max:255',
+        'category_id' => 'required_if:role,talent|uuid|exists:categories,id',
+    ]);
 
-        // Create user
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'role' => $request->role,
-            'phone' => $request->phone,
-            'account_status' => 'pending_verification',
-        ]);
-
-        // Create role-specific profile
-        if ($request->role === 'talent') {
-            $user->talentProfile()->create([
-                'category_id' => $request->category_id,
-            ]);
-        } elseif ($request->role === 'recruiter') {
-            $user->recruiterProfile()->create([
-                'company_name' => $request->company_name,
-            ]);
-        }
-
-        // Send email verification
-        $user->sendEmailVerificationNotification();
-
-        // Create token
-        $token = $user->createToken('auth-token', [$request->role])->plainTextToken;
-
+    if ($validator->fails()) {
         return response()->json([
-            'message' => 'Registration successful. Please verify your email.',
-            'user' => $user->load($request->role . 'Profile'),
-            'token' => $token,
-            'token_type' => 'Bearer',
-        ], 201);
+            'message' => 'Validation failed',
+            'errors' => $validator->errors()
+        ], 422);
     }
+
+    // Create user
+    $user = User::create([
+        'first_name' => $request->first_name,
+        'last_name' => $request->last_name,
+        'email' => $request->email,
+        'password' => Hash::make($request->password),
+        'role' => $request->role,
+        'phone' => $request->phone,
+        'account_status' => 'pending_verification',
+    ]);
+}
 
     /**
      * Login user and return token
