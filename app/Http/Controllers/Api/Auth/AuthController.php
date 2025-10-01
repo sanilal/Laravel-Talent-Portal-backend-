@@ -16,41 +16,98 @@ class AuthController extends Controller
      * Register a new user (Talent or Recruiter)
      */
     public function register(Request $request)
-{
-    $validator = Validator::make($request->all(), [
-        'first_name' => 'required|string|max:255',
-        'last_name' => 'required|string|max:255',
-        'email' => 'required|string|email|max:255|unique:users',
-        'password' => ['required', 'confirmed', Password::min(8)
-            ->mixedCase()
-            ->numbers()
-            ->symbols()],
-        'role' => 'required|in:talent,recruiter',
-        'phone' => 'nullable|string|max:20',
+    {
+        $validator = Validator::make($request->all(), [
+            'first_name' => 'required|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => ['required', 'confirmed', Password::min(8)
+                ->mixedCase()
+                ->numbers()
+                ->symbols()],
+            'role' => 'required|in:talent,recruiter',
+            'phone' => 'nullable|string|max:20',
 
-        // Conditional validation based on role
-        'company_name' => 'required_if:role,recruiter|string|max:255',
-        'category_id' => 'required_if:role,talent|uuid|exists:categories,id',
-    ]);
+            // Conditional validation based on role
+            'company_name' => 'required_if:role,recruiter|string|max:255',
+            'category_id' => 'required_if:role,talent|uuid|exists:categories,id',
+        ]);
 
-    if ($validator->fails()) {
-        return response()->json([
-            'message' => 'Validation failed',
-            'errors' => $validator->errors()
-        ], 422);
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            \DB::beginTransaction();
+
+            // Create user
+            $user = User::create([
+                'first_name' => $request->first_name,
+                'last_name' => $request->last_name,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+                'user_type' => $request->role, // Changed from 'role' to 'user_type'
+                'phone' => $request->phone,
+                'account_status' => 'pending_verification',
+            ]);
+
+            // Create role-specific profile
+            if ($request->role === 'talent') {
+                $user->talentProfile()->create([
+                    'primary_category_id' => $request->category_id,
+                    'is_available' => true,
+                    'is_public' => false, // Private until profile is completed
+                    'profile_completion_percentage' => 10, // Basic info completed
+                ]);
+            } elseif ($request->role === 'recruiter') {
+                $user->recruiterProfile()->create([
+                    'company_name' => $request->company_name,
+                    'is_verified' => false,
+                ]);
+            }
+
+            \DB::commit();
+
+            // Generate email verification code
+            $verificationCode = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+            
+            // Store verification code (you can use cache or database)
+            \Cache::put(
+                'email_verification_' . $user->id,
+                $verificationCode,
+                now()->addMinutes(15)
+            );
+
+            // TODO: Send verification email with $verificationCode
+            // Mail::to($user->email)->send(new VerificationEmail($verificationCode));
+
+            // Create auth token
+            $token = $user->createToken('auth-token', [$request->role])->plainTextToken;
+
+            // Load profile relationship
+            $profileRelation = $request->role . 'Profile';
+            $user->load($profileRelation);
+
+            return response()->json([
+                'message' => 'Registration successful. Please verify your email.',
+                'user' => $user,
+                'token' => $token,
+                'token_type' => 'Bearer',
+                'verification_required' => true,
+            ], 201);
+
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            
+            return response()->json([
+                'message' => 'Registration failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
-
-    // Create user
-    $user = User::create([
-        'first_name' => $request->first_name,
-        'last_name' => $request->last_name,
-        'email' => $request->email,
-        'password' => Hash::make($request->password),
-        'role' => $request->role,
-        'phone' => $request->phone,
-        'account_status' => 'pending_verification',
-    ]);
-}
 
     /**
      * Login user and return token
