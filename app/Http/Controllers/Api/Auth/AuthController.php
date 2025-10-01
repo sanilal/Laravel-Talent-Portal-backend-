@@ -502,7 +502,8 @@ class AuthController extends Controller
         $user = $request->user();
 
         $validator = Validator::make($request->all(), [
-            'name' => 'sometimes|string|max:255',
+            'first_name' => 'sometimes|string|max:255',
+            'last_name' => 'sometimes|string|max:255',
             'phone' => 'sometimes|nullable|string|max:20',
             'bio' => 'sometimes|nullable|string|max:1000',
         ]);
@@ -514,11 +515,14 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $user->update($request->only(['name', 'phone', 'bio']));
+        $user->update($request->only(['first_name', 'last_name', 'phone', 'bio']));
+
+        // Load profile
+        $profileRelation = $user->user_type . 'Profile';
 
         return response()->json([
             'message' => 'Profile updated successfully',
-            'user' => $user->fresh()->load($user->role . 'Profile')
+            'user' => $user->fresh()->load($profileRelation)
         ]);
     }
 
