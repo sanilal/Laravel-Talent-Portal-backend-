@@ -16,7 +16,14 @@ class PublicController extends Controller
      */
     public function categories()
     {
-        $categories = Category::withCount('talents')
+        $categories = Category::withCount(['talentProfiles as talents_count' => function ($query) {
+                $query->whereHas('user', function ($q) {
+                    $q->where('user_type', 'talent')
+                      ->where('account_status', 'active');
+                })
+                ->where('is_public', true)
+                ->where('is_available', true);
+            }])
             ->orderBy('name')
             ->get();
 
@@ -39,9 +46,9 @@ class PublicController extends Controller
 
         // Category filter
         if ($request->has('category_id')) {
-            $query->whereHas('talents', function ($q) use ($request) {
-                $q->whereHas('talentProfile', function ($q2) use ($request) {
-                    $q2->where('category_id', $request->category_id);
+            $query->whereHas('talentSkills', function ($q) use ($request) {
+                $q->whereHas('talent.talentProfile', function ($q2) use ($request) {
+                    $q2->where('primary_category_id', $request->category_id);
                 });
             });
         }
@@ -129,19 +136,21 @@ class PublicController extends Controller
     public function talents(Request $request)
     {
         $query = User::with(['talentProfile.category', 'skills'])
-            ->where('role', 'talent')
+            ->where('user_type', 'talent') // Changed from 'role' to 'user_type'
             ->where('account_status', 'active')
             ->whereHas('talentProfile', function ($q) {
-                $q->where('visibility', 'public')
+                $q->where('is_public', true) // Changed from 'visibility'
                   ->where('is_available', true);
             });
 
         // Search
         if ($request->has('search')) {
             $query->where(function ($q) use ($request) {
-                $q->where('name', 'like', '%' . $request->search . '%')
+                $q->where('first_name', 'like', '%' . $request->search . '%')
+                  ->orWhere('last_name', 'like', '%' . $request->search . '%')
+                  ->orWhere('bio', 'like', '%' . $request->search . '%')
                   ->orWhereHas('talentProfile', function ($q2) use ($request) {
-                      $q2->where('bio', 'like', '%' . $request->search . '%');
+                      $q2->where('summary', 'like', '%' . $request->search . '%');
                   });
             });
         }
@@ -149,23 +158,21 @@ class PublicController extends Controller
         // Category filter
         if ($request->has('category_id')) {
             $query->whereHas('talentProfile', function ($q) use ($request) {
-                $q->where('category_id', $request->category_id);
+                $q->where('primary_category_id', $request->category_id); // Changed field name
             });
         }
 
         // Skills filter
         if ($request->has('skills')) {
             $skills = explode(',', $request->skills);
-            $query->whereHas('skills', function ($q) use ($skills) {
-                $q->whereIn('skills.id', $skills);
+            $query->whereHas('talentSkills', function ($q) use ($skills) {
+                $q->whereIn('skill_id', $skills);
             });
         }
 
         // Location filter
         if ($request->has('location')) {
-            $query->whereHas('talentProfile', function ($q) use ($request) {
-                $q->where('location', 'like', '%' . $request->location . '%');
-            });
+            $query->where('location', 'like', '%' . $request->location . '%');
         }
 
         // Experience level
@@ -194,7 +201,7 @@ class PublicController extends Controller
     {
         $talent = User::with([
             'talentProfile.category',
-            'skills',
+            'talentSkills.skill',
             'portfolios',
             'experiences',
             'education',
@@ -202,15 +209,15 @@ class PublicController extends Controller
                 $q->where('is_approved', true)->latest()->take(5);
             }
         ])
-        ->where('role', 'talent')
+        ->where('user_type', 'talent') // Changed from 'role'
         ->where('account_status', 'active')
         ->whereHas('talentProfile', function ($q) {
-            $q->where('visibility', 'public');
+            $q->where('is_public', true); // Changed from 'visibility'
         })
         ->findOrFail($id);
 
         // Increment profile view count
-        $talent->talentProfile->increment('views_count');
+        $talent->talentProfile->increment('profile_views'); // Changed field name
 
         return response()->json([
             'talent' => $talent
