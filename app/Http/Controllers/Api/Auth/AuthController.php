@@ -112,6 +112,9 @@ class AuthController extends Controller
     /**
      * Login user and return token
      */
+    /**
+ * Login user and return token
+ */
     public function login(Request $request)
     {
         $request->validate([
@@ -135,9 +138,9 @@ class AuthController extends Controller
             ], 403);
         }
 
-        if ($user->account_status === 'deleted') {
+        if ($user->account_status === 'banned') {
             return response()->json([
-                'message' => 'This account no longer exists.'
+                'message' => 'This account has been banned.'
             ], 403);
         }
 
@@ -145,7 +148,7 @@ class AuthController extends Controller
         if ($user->two_factor_enabled) {
             // Create temporary token for 2FA verification
             $tempToken = $user->createToken('2fa-temp', ['2fa:pending'])->plainTextToken;
-            
+
             return response()->json([
                 'message' => '2FA verification required',
                 'requires_2fa' => true,
@@ -161,11 +164,15 @@ class AuthController extends Controller
 
         // Create token with role-based abilities
         $deviceName = $request->device_name ?? $request->userAgent();
-        $token = $user->createToken($deviceName, [$user->role])->plainTextToken;
+        $token = $user->createToken($deviceName, [$user->user_type])->plainTextToken;
+
+        // Load the correct profile relationship
+        $profileRelation = $user->user_type . 'Profile';
+        $user->load($profileRelation);
 
         return response()->json([
             'message' => 'Login successful',
-            'user' => $user->load($user->role . 'Profile'),
+            'user' => $user,
             'token' => $token,
             'token_type' => 'Bearer',
         ]);
