@@ -112,9 +112,7 @@ class AuthController extends Controller
     /**
      * Login user and return token
      */
-    /**
- * Login user and return token
- */
+ 
     public function login(Request $request)
     {
         $request->validate([
@@ -181,6 +179,9 @@ class AuthController extends Controller
     /**
      * Verify two-factor authentication code
      */
+    /**
+ * Verify two-factor authentication code
+ */
     public function verifyTwoFactor(Request $request)
     {
         $request->validate([
@@ -209,11 +210,15 @@ class AuthController extends Controller
         ]);
 
         // Create new token with full abilities
-        $token = $user->createToken('auth-token', [$user->role])->plainTextToken;
+        $token = $user->createToken('auth-token', [$user->user_type])->plainTextToken;
+
+        // Load profile
+        $profileRelation = $user->user_type . 'Profile';
+        $user->load($profileRelation);
 
         return response()->json([
             'message' => '2FA verification successful',
-            'user' => $user->load($user->role . 'Profile'),
+            'user' => $user,
             'token' => $token,
             'token_type' => 'Bearer',
         ]);
@@ -222,10 +227,13 @@ class AuthController extends Controller
     /**
      * Get authenticated user details
      */
+
     public function me(Request $request)
     {
+        $profileRelation = $request->user()->user_type . 'Profile';
+        
         $user = $request->user()->load([
-            $request->user()->role . 'Profile',
+            $profileRelation,
             'notifications' => function ($query) {
                 $query->whereNull('read_at')->latest()->take(5);
             }
