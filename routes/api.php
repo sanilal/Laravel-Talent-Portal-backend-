@@ -23,6 +23,10 @@ use Illuminate\Support\Facades\Route;
 | Base URL: /api/v1/*
 */
 
+
+Route::get('/v1/test', function () {
+    return ['status' => 'ok'];
+});
 Route::prefix('v1')->group(function () {
     
     // ============================================
