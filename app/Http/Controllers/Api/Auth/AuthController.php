@@ -233,15 +233,11 @@ class AuthController extends Controller
         $profileRelation = $request->user()->user_type . 'Profile';
         
         $user = $request->user()->load([
-            $profileRelation,
-            'notifications' => function ($query) {
-                $query->whereNull('read_at')->latest()->take(5);
-            }
+            $profileRelation
         ]);
 
         return response()->json([
             'user' => $user,
-            'unread_notifications' => $user->unreadNotifications->count(),
         ]);
     }
 
