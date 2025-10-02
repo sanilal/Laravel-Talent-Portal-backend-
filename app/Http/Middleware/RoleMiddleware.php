@@ -18,13 +18,14 @@ class RoleMiddleware
     {
         // Check if user is authenticated
         if (!Auth::check()) {
-            // For API requests, return JSON
-            if ($request->expectsJson()) {
+            // For API routes, always return JSON
+            if ($request->is('api/*')) {
                 return response()->json([
                     'message' => 'Unauthenticated.'
                 ], 401);
             }
-            // For web requests, redirect to login
+            
+            // For web routes, redirect to login
             return redirect()->route('login');
         }
 
@@ -32,8 +33,8 @@ class RoleMiddleware
 
         // Check if user is active
         if (!$user->isActive()) {
-            // For API requests (Sanctum token-based)
-            if ($request->expectsJson()) {
+            // For API routes (using Sanctum)
+            if ($request->is('api/*')) {
                 // Revoke current token if using Sanctum
                 if ($request->user() && $request->user()->currentAccessToken()) {
                     $request->user()->currentAccessToken()->delete();
@@ -45,16 +46,20 @@ class RoleMiddleware
                 ], 403);
             }
             
-            // For web requests (session-based)
-            Auth::logout();
+            // For web routes (session-based) - only if using session guard
+            if ($request->hasSession()) {
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+            }
+            
             return redirect()->route('login')
                 ->withErrors(['error' => 'Your account has been deactivated.']);
         }
 
         // Check if user has required role
         if (!in_array($user->user_type, $roles)) {
-            // For API requests
-            if ($request->expectsJson()) {
+            // For API routes
+            if ($request->is('api/*')) {
                 return response()->json([
                     'message' => 'Forbidden. You do not have permission to access this resource.',
                     'error' => 'insufficient_permissions',
@@ -63,7 +68,7 @@ class RoleMiddleware
                 ], 403);
             }
             
-            // For web requests
+            // For web routes
             abort(403, 'Unauthorized access.');
         }
 

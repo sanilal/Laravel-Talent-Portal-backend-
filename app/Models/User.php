@@ -36,7 +36,7 @@ class User extends Authenticatable
         'two_factor_secret',
         'two_factor_recovery_codes',
         'two_factor_confirmed_at',
-        'status',
+        'account_statuse',
         'last_login_at',
         'last_activity_at',
         'login_attempts',
@@ -130,7 +130,7 @@ class User extends Authenticatable
      */
     public function isActive(): bool
     {
-        return $this->status === self::STATUS_ACTIVE;
+        return $this->account_status === self::STATUS_ACTIVE;
     }
 
     /**
