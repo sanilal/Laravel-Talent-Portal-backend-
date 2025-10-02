@@ -1,6 +1,5 @@
 <?php
 
-// bootstrap/app.php (Laravel 11 style)
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -12,10 +11,10 @@ return Application::configure(basePath: dirname(__DIR__))
         api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
-        // then: function () {
-        //     Route::middleware('web')
-        //         ->group(base_path('routes/auth.php'));
-        // }
+        then: function () {
+            Route::middleware('web')
+                ->group(base_path('routes/auth.php'));
+        }
     )
     ->withMiddleware(function (Middleware $middleware) {
         // Global middleware
@@ -67,10 +66,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions) {
         // Custom exception handling for authentication
         $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, $request) {
-            if ($request->expectsJson()) {
+            if ($request->expectsJson() || $request->is('api/*')) {
                 return response()->json([
                     'message' => 'Unauthenticated.',
-                    'redirect' => route('login'),
                 ], 401);
             }
 
@@ -78,7 +76,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (\Illuminate\Auth\Access\AuthorizationException $e, $request) {
-            if ($request->expectsJson()) {
+            if ($request->expectsJson() || $request->is('api/*')) {
                 return response()->json([
                     'message' => 'This action is unauthorized.',
                 ], 403);
@@ -88,7 +86,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException $e, $request) {
-            if ($request->expectsJson()) {
+            if ($request->expectsJson() || $request->is('api/*')) {
                 return response()->json([
                     'message' => 'Too many requests.',
                     'retry_after' => $e->getHeaders()['Retry-After'] ?? null,
