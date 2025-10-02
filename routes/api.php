@@ -266,7 +266,7 @@ Route::prefix('v1')->group(function () {
     // ADMIN ROUTES (Require Admin Role)
     // ============================================
     
-    Route::prefix('admin')->middleware(['auth:sanctum', 'verified', 'role:admin'])->group(function () {
+    Route::prefix('admin')->middleware(['auth:sanctum', 'role:admin'])->group(function () {
         // Dashboard
         Route::get('/dashboard', function () {
             return response()->json([
