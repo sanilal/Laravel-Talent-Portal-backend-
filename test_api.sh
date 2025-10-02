@@ -1,11 +1,12 @@
-
 #!/bin/bash
 
 # ============================================
 # CONFIGURATION
 # ============================================
 BASE_URL="http://localhost:8000"
-TOKEN="13|9ju8RQfiWNykp9DOnGoiCPUzYfj31t0fHyyux1pSc5e6d2e6"
+LOGIN_EMAIL="john.talent@test.com"
+LOGIN_PASSWORD="Password123!"
+TOKEN="20|TVpwNoMCWErFP3Jv3Ov5waesLH2jI8P8KTVKnOGT5cd18c69"
 USER_ID="01999f5a-9b25-7398-a7ba-ab9ae2753004"
 
 # Colors for output
@@ -40,7 +41,7 @@ CREATED_MEDIA_ID=""
 print_header() {
     echo -e "\n${BLUE}╔════════════════════════════════════════════════════════════════╗${NC}"
     echo -e "${BLUE}║  $(printf '%-60s' "$1")║${NC}"
-    echo -e "${BLUE}╔════════════════════════════════════════════════════════════════╗${NC}\n"
+    echo -e "${BLUE}╚════════════════════════════════════════════════════════════════╝${NC}\n"
 }
 
 print_subheader() {
@@ -90,7 +91,7 @@ test_endpoint() {
         PASSED=$((PASSED + 1))
         
         # Extract and store IDs from response
-        if echo "$body" | jq -e . >/dev/null 2>&1; then
+        if command -v jq &> /dev/null; then
             local id=$(echo "$body" | jq -r '.data.id // .id // empty' 2>/dev/null)
             if [ -n "$id" ] && [ "$id" != "null" ]; then
                 case "$endpoint" in
@@ -114,7 +115,7 @@ test_endpoint() {
     
     # Show response preview
     if [ -n "$body" ]; then
-        if echo "$body" | jq -e . >/dev/null 2>&1; then
+        if command -v jq &> /dev/null && echo "$body" | jq -e . >/dev/null 2>&1; then
             echo -e "    ${CYAN}Response:${NC} $(echo "$body" | jq -c '.' 2>/dev/null | head -c 150)..."
         else
             echo -e "    ${CYAN}Response:${NC} $(echo "$body" | head -c 150)..."
@@ -142,7 +143,42 @@ echo -e "${NC}\n"
 
 echo -e "${YELLOW}Configuration:${NC}"
 echo -e "  Base URL: $BASE_URL"
-echo -e "  Token: ${TOKEN:0:20}..."
+echo -e "  Login Email: $LOGIN_EMAIL"
+echo -e ""
+
+# ============================================
+# AUTO-LOGIN TO GET FRESH TOKEN
+# ============================================
+echo -e "${YELLOW}Logging in to get authentication token...${NC}"
+login_response=$(curl -s -X POST "$BASE_URL/api/v1/auth/login" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d "{\"email\":\"$LOGIN_EMAIL\",\"password\":\"$LOGIN_PASSWORD\"}")
+
+# Try to extract token with jq, fallback to grep/sed if jq fails
+if command -v jq &> /dev/null; then
+    TOKEN=$(echo "$login_response" | jq -r '.token // empty' 2>/dev/null)
+else
+    # Fallback: extract token without jq
+    TOKEN=$(echo "$login_response" | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
+fi
+
+# Validate token
+if [ -z "$TOKEN" ] || [ "$TOKEN" == "null" ] || [ "$TOKEN" == "empty" ]; then
+    echo -e "${RED}✗ Login failed! Cannot proceed with tests.${NC}"
+    echo -e "${RED}Response: $login_response${NC}"
+    
+    # Check if jq is missing
+    if ! command -v jq &> /dev/null; then
+        echo -e "${YELLOW}⚠ Warning: 'jq' is not installed. Install it for better JSON parsing.${NC}"
+        echo -e "${YELLOW}  Windows: Download from https://stedolan.github.io/jq/download/${NC}"
+        echo -e "${YELLOW}  Or use: choco install jq (if you have Chocolatey)${NC}"
+    fi
+    exit 1
+fi
+
+echo -e "${GREEN}✓ Login successful!${NC}"
+echo -e "  Token: ${TOKEN:0:20}...${NC}"
 echo -e "  User ID: $USER_ID"
 echo -e ""
 
@@ -181,7 +217,40 @@ print_header "3. AUTHENTICATION ROUTES"
 print_subheader "Session Management"
 test_endpoint "GET" "/api/v1/auth/me" "Get current authenticated user" "" 200
 test_endpoint "GET" "/api/v1/auth/sessions" "Get all active sessions" "" 200
-test_endpoint "POST" "/api/v1/auth/refresh-token" "Refresh authentication token" "" 200
+
+# Refresh token and update TOKEN variable
+TOTAL=$((TOTAL + 1))
+echo -e "${YELLOW}[$TOTAL] Refreshing token...${NC}"
+response=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/v1/auth/refresh-token" \
+    -H "Accept: application/json" \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "Content-Type: application/json")
+http_code=$(echo "$response" | tail -n1)
+body=$(echo "$response" | sed '$d')
+
+if [ "$http_code" -eq 200 ]; then
+    PASSED=$((PASSED + 1))
+    if command -v jq &> /dev/null; then
+        NEW_TOKEN=$(echo "$body" | jq -r '.token // empty' 2>/dev/null)
+    else
+        NEW_TOKEN=$(echo "$body" | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
+    fi
+    
+    if [ -n "$NEW_TOKEN" ] && [ "$NEW_TOKEN" != "null" ]; then
+        TOKEN="$NEW_TOKEN"
+        echo -e "    ${GREEN}✓ PASSED${NC} - Status: 200"
+        echo -e "    ${GREEN}✓ Token refreshed and updated successfully${NC}"
+        echo -e "    ${CYAN}→ New token: ${TOKEN:0:20}...${NC}\n"
+    else
+        echo -e "    ${YELLOW}⚠ Could not extract new token, keeping old one${NC}\n"
+    fi
+else
+    FAILED=$((FAILED + 1))
+    echo -e "    ${RED}✗ FAILED${NC} - Status: $http_code"
+    echo -e "    ${RED}✗ Token refresh failed, keeping old token${NC}\n"
+fi
+
+sleep 0.3
 
 print_subheader "Profile Management"
 test_endpoint "PUT" "/api/v1/auth/update-profile" "Update user profile" '{
@@ -211,9 +280,6 @@ test_endpoint "POST" "/api/v1/auth/reset-password" "Reset password (requires val
 
 print_subheader "Authentication Actions (Skipped)"
 echo -e "${MAGENTA}Skipping logout endpoints to preserve current session${NC}\n"
-# test_endpoint "POST" "/api/v1/auth/logout" "Logout current session" "" 200
-# test_endpoint "POST" "/api/v1/auth/logout-all-devices" "Logout all devices" "" 200
-# test_endpoint "DELETE" "/api/v1/auth/sessions/{tokenId}" "Revoke specific session" "" 200
 
 # ============================================
 # 4. EMAIL VERIFICATION
@@ -238,11 +304,6 @@ test_endpoint "GET" "/api/v1/two-factor/recovery-codes" "Get recovery codes" "" 
 
 print_subheader "2FA Actions (Skipped to avoid enabling)"
 echo -e "${MAGENTA}Skipping 2FA enable/disable to avoid changing account state${NC}\n"
-# test_endpoint "POST" "/api/v1/two-factor/enable" "Enable 2FA" "" 200
-# test_endpoint "POST" "/api/v1/two-factor/confirm" "Confirm 2FA" '{"code":"123456"}' 200
-# test_endpoint "POST" "/api/v1/two-factor/verify" "Verify 2FA code" '{"code":"123456"}' 200
-# test_endpoint "DELETE" "/api/v1/two-factor/disable" "Disable 2FA" "" 200
-# test_endpoint "POST" "/api/v1/two-factor/recovery-codes" "Regenerate recovery codes" "" 200
 
 # ============================================
 # 6. TALENT PROFILE ROUTES
@@ -265,7 +326,6 @@ test_endpoint "PUT" "/api/v1/talent/profile" "Update talent profile" '{
 }' 200
 
 echo -e "${MAGENTA}Skipping avatar upload (requires multipart form data)${NC}\n"
-# test_endpoint "POST" "/api/v1/talent/profile/avatar" "Upload avatar" "" 200
 
 print_subheader "Skills"
 test_endpoint "GET" "/api/v1/talent/skills" "Get talent skills" "" 200
@@ -425,7 +485,6 @@ test_endpoint "PUT" "/api/v1/recruiter/profile" "Update recruiter profile (may f
 }' 200
 
 echo -e "${MAGENTA}Skipping logo upload (requires multipart form data)${NC}\n"
-# test_endpoint "POST" "/api/v1/recruiter/profile/logo" "Upload company logo" "" 200
 
 test_endpoint "GET" "/api/v1/recruiter/talents/search" "Search talents" "" 200
 test_endpoint "GET" "/api/v1/recruiter/talents/search?q=developer&skills=laravel" "Search talents with filters" "" 200

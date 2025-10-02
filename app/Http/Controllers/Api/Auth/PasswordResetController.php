@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
@@ -21,6 +22,12 @@ class PasswordResetController extends Controller
         $request->validate([
             'email' => 'required|email',
         ]);
+
+        // Configure the reset URL to point to Next.js frontend
+        ResetPassword::createUrlUsing(function (User $user, string $token) {
+            $frontendUrl = config('app.frontend_url');
+            return $frontendUrl . '/reset-password?token=' . $token . '&email=' . urlencode($user->email);
+        });
 
         // Send password reset link
         $status = Password::sendResetLink(
@@ -55,12 +62,11 @@ class PasswordResetController extends Controller
         // Reset password
         $status = Password::reset(
             $request->only('email', 'password', 'password_confirmation', 'token'),
-            function ($user, $password) {
+            function (User $user, string $password) {
                 $user->forceFill([
-                    'password' => Hash::make($password)
-                ])->setRememberToken(Str::random(60));
-
-                $user->save();
+                    'password' => Hash::make($password),
+                    'remember_token' => Str::random(60),
+                ])->save();
 
                 // Revoke all existing tokens for security
                 $user->tokens()->delete();
