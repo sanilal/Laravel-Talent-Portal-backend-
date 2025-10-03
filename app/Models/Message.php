@@ -13,42 +13,48 @@ class Message extends Model
 
     protected $fillable = [
         'sender_id',
-        'receiver_id',
+        'recipient_id', // Changed from receiver_id
         'application_id',
         'project_id',
+        'parent_id',
         'subject',
         'body',
         'message_type',
-        'status',
+        'is_read',
         'read_at',
-        'replied_at',
+        'is_important',
+        'is_archived',
         'attachments',
         'metadata',
     ];
 
     protected $casts = [
         'read_at' => 'datetime',
-        'replied_at' => 'datetime',
         'attachments' => 'array',
         'metadata' => 'array',
+        'is_read' => 'boolean',
+        'is_important' => 'boolean',
+        'is_archived' => 'boolean',
     ];
 
     const TYPE_DIRECT = 'direct';
     const TYPE_APPLICATION = 'application';
     const TYPE_SYSTEM = 'system';
 
-    const STATUS_SENT = 'sent';
-    const STATUS_DELIVERED = 'delivered';
-    const STATUS_READ = 'read';
-
     public function sender()
     {
         return $this->belongsTo(User::class, 'sender_id');
     }
 
+    public function recipient()
+    {
+        return $this->belongsTo(User::class, 'recipient_id');
+    }
+
+    // Alias for backward compatibility
     public function receiver()
     {
-        return $this->belongsTo(User::class, 'receiver_id');
+        return $this->recipient();
     }
 
     public function application()
@@ -61,13 +67,28 @@ class Message extends Model
         return $this->belongsTo(Project::class);
     }
 
+    public function parent()
+    {
+        return $this->belongsTo(Message::class, 'parent_id');
+    }
+
+    public function replies()
+    {
+        return $this->hasMany(Message::class, 'parent_id');
+    }
+
     public function markAsRead()
     {
-        $this->update(['status' => self::STATUS_READ, 'read_at' => now()]);
+        $this->update(['is_read' => true, 'read_at' => now()]);
     }
 
     public function scopeUnread($query)
     {
-        return $query->where('status', '!=', self::STATUS_READ);
+        return $query->where('is_read', false);
+    }
+
+    public function scopeImportant($query)
+    {
+        return $query->where('is_important', true);
     }
 }
