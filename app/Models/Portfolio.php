@@ -13,42 +13,56 @@ class Portfolio extends Model
 
     protected $fillable = [
         'talent_profile_id',
+        'category_id',
         'title',
+        'slug',
         'description',
         'project_type',
-        'role',
-        'client',
+        'skills_demonstrated',
+        'project_url',
+        'external_url',
         'completion_date',
-        'duration',
-        'budget',
-        'currency',
-        'technologies_used',
-        'challenges',
-        'results',
-        'media_urls',
-        'external_links',
+        'client_name',
+        'director_name',
+        'role_description',
+        'challenges_faced',
+        'collaborators',
+        'awards',
         'is_featured',
         'is_public',
-        'sort_order',
+        'is_demo_reel',
+        'views_count',
+        'likes_count',
+        'average_rating',
+        'total_ratings',
+        'order',
         'metadata',
     ];
 
     protected $casts = [
         'completion_date' => 'date',
-        'budget' => 'decimal:2',
         'is_featured' => 'boolean',
         'is_public' => 'boolean',
-        'technologies_used' => 'array',
-        'challenges' => 'array',
-        'results' => 'array',
-        'media_urls' => 'array',
-        'external_links' => 'array',
+        'is_demo_reel' => 'boolean',
+        'skills_demonstrated' => 'array',
+        'collaborators' => 'array',
+        'awards' => 'array',
         'metadata' => 'array',
+        'views_count' => 'integer',
+        'likes_count' => 'integer',
+        'average_rating' => 'decimal:2',
+        'total_ratings' => 'integer',
+        'order' => 'integer',
     ];
 
     public function talentProfile()
     {
         return $this->belongsTo(TalentProfile::class);
+    }
+
+    public function category()
+    {
+        return $this->belongsTo(Category::class);
     }
 
     public function media()
@@ -67,4 +81,3 @@ class Portfolio extends Model
         return $query->where('is_public', true);
     }
 }
-

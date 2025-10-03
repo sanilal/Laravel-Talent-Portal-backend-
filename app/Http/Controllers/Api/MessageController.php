@@ -90,19 +90,19 @@ class MessageController extends Controller
 
         $messages = Message::where(function($query) use ($currentUserId, $userId) {
                 $query->where('sender_id', $currentUserId)
-                      ->where('receiver_id', $userId);
+                      ->where('recipient_id', $userId);
             })
             ->orWhere(function($query) use ($currentUserId, $userId) {
                 $query->where('sender_id', $userId)
-                      ->where('receiver_id', $currentUserId);
+                      ->where('recipient_id', $currentUserId);
             })
-            ->with(['sender', 'receiver'])
+            ->with(['sender', 'recipient'])
             ->orderBy('created_at', 'asc')
             ->get();
 
         // Mark received messages as read
         Message::where('sender_id', $userId)
-            ->where('receiver_id', $currentUserId)
+            ->where('recipient_id', $currentUserId)
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
 
@@ -117,7 +117,7 @@ class MessageController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'receiver_id' => 'required|uuid|exists:users,id',
+            'recipient_id' => 'required|uuid|exists:users,id',
             'subject' => 'nullable|string|max:255',
             'body' => 'required|string|max:5000',
         ]);
@@ -130,14 +130,14 @@ class MessageController extends Controller
         }
 
         // Cannot message yourself
-        if ($request->receiver_id === $request->user()->id) {
+        if ($request->recipient_id === $request->user()->id) {
             return response()->json([
                 'message' => 'You cannot send a message to yourself',
             ], 400);
         }
 
         // Check if recipient exists
-        $recipient = User::find($request->receiver_id);
+        $recipient = User::find($request->recipient_id);
         if (!$recipient) {
             return response()->json([
                 'message' => 'Recipient not found',
@@ -146,18 +146,18 @@ class MessageController extends Controller
 
         $message = Message::create([
             'sender_id' => $request->user()->id,
-            'receiver_id' => $request->receiver_id,
+            'recipient_id' => $request->recipient_id,
             'subject' => $request->subject,
             'body' => $request->body,
             'message_type' => Message::TYPE_DIRECT,
-            'status' => Message::STATUS_SENT,
+            'is_read' => false,
         ]);
 
         // TODO: Send notification to recipient
 
         return response()->json([
             'message' => 'Message sent successfully',
-            'data' => $message->load(['sender', 'receiver']),
+            'data' => $message->load(['sender', 'recipient']),
         ], 201);
     }
 
