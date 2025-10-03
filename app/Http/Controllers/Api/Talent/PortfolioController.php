@@ -50,7 +50,10 @@ class PortfolioController extends Controller
             ], 422);
         }
 
-        $portfolioData = $request->except('images');
+        $portfolioData = $request->only([
+            'title', 'description', 'project_url', 'repository_url', 
+            'technologies', 'completed_at', 'is_featured'
+        ]);
         
         // Handle image uploads
         if ($request->hasFile('images')) {
@@ -128,7 +131,10 @@ class PortfolioController extends Controller
             ], 404);
         }
 
-        $updateData = $request->except(['new_images', 'remove_images']);
+        $updateData = $request->only([
+            'title', 'description', 'project_url', 'repository_url', 
+            'technologies', 'completed_at', 'is_featured'
+        ]);
         
         // Handle image removals
         if ($request->has('remove_images')) {
