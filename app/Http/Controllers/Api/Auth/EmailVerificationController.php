@@ -34,14 +34,20 @@ class EmailVerificationController extends Controller
             ], 429);
         }
 
+        // Generate verification token
+        $token = Str::random(64);
+
         // Log attempt
         EmailVerificationAttempt::create([
             'user_id' => $user->id,
             'email' => $user->email,
+            'token' => $token,
             'ip_address' => $request->ip(),
-            'user_agent' => $request->userAgent(),
+            'expires_at' => now()->addHours(24),
+            'is_used' => false,
         ]);
 
+        // Send verification email
         $user->sendEmailVerificationNotification();
 
         return response()->json([
@@ -66,9 +72,8 @@ class EmailVerificationController extends Controller
             ], 400);
         }
 
-        // In a real implementation, you'd store verification codes in database
+        // In a real implementation, you'd verify the code against stored verification attempts
         // For now, we'll use Laravel's built-in email verification
-        
         $user->markEmailAsVerified();
 
         // Update account status
