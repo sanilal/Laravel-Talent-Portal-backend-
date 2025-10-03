@@ -17,8 +17,8 @@ class MessageController extends Controller
     public function index(Request $request)
     {
         $messages = Message::where('sender_id', $request->user()->id)
-            ->orWhere('recipient_id', $request->user()->id)
-            ->with(['sender', 'recipient'])
+            ->orWhere('receiver_id', $request->user()->id)
+            ->with(['sender', 'receiver'])
             ->orderByDesc('created_at')
             ->paginate(20);
 
@@ -33,34 +33,39 @@ class MessageController extends Controller
         $userId = $request->user()->id;
 
         // Get unique conversation partners with last message
+        // Using created_at instead of MAX(id) to avoid UUID issue
         $conversations = Message::select('messages.*')
             ->where(function($query) use ($userId) {
                 $query->where('sender_id', $userId)
-                      ->orWhere('recipient_id', $userId);
+                      ->orWhere('receiver_id', $userId);
             })
-            ->whereIn('id', function($query) use ($userId) {
-                $query->select(DB::raw('MAX(id)'))
+            ->whereIn('created_at', function($query) use ($userId) {
+                $query->select(DB::raw('MAX(created_at)'))
                     ->from('messages')
                     ->where(function($q) use ($userId) {
                         $q->where('sender_id', $userId)
-                          ->orWhere('recipient_id', $userId);
+                          ->orWhere('receiver_id', $userId);
                     })
-                    ->groupBy(DB::raw('LEAST(sender_id, recipient_id), GREATEST(sender_id, recipient_id)'));
+                    ->where('deleted_at', null)
+                    ->groupBy(DB::raw('CASE 
+                        WHEN sender_id = \'' . $userId . '\' THEN receiver_id 
+                        ELSE sender_id 
+                    END'));
             })
-            ->with(['sender', 'recipient'])
+            ->with(['sender', 'receiver'])
             ->orderByDesc('created_at')
             ->get()
             ->map(function($message) use ($userId) {
-                $partnerId = $message->sender_id === $userId 
-                    ? $message->recipient_id 
+                $partnerId = $message->sender_id === $userId
+                    ? $message->receiver_id
                     : $message->sender_id;
-                
-                $partner = $message->sender_id === $userId 
-                    ? $message->recipient 
+
+                $partner = $message->sender_id === $userId
+                    ? $message->receiver
                     : $message->sender;
 
                 $unreadCount = Message::where('sender_id', $partnerId)
-                    ->where('recipient_id', $userId)
+                    ->where('receiver_id', $userId)
                     ->whereNull('read_at')
                     ->count();
 
@@ -85,19 +90,19 @@ class MessageController extends Controller
 
         $messages = Message::where(function($query) use ($currentUserId, $userId) {
                 $query->where('sender_id', $currentUserId)
-                      ->where('recipient_id', $userId);
+                      ->where('receiver_id', $userId);
             })
             ->orWhere(function($query) use ($currentUserId, $userId) {
                 $query->where('sender_id', $userId)
-                      ->where('recipient_id', $currentUserId);
+                      ->where('receiver_id', $currentUserId);
             })
-            ->with(['sender', 'recipient'])
+            ->with(['sender', 'receiver'])
             ->orderBy('created_at', 'asc')
             ->get();
 
         // Mark received messages as read
         Message::where('sender_id', $userId)
-            ->where('recipient_id', $currentUserId)
+            ->where('receiver_id', $currentUserId)
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
 
@@ -112,10 +117,9 @@ class MessageController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'recipient_id' => 'required|uuid|exists:users,id',
+            'receiver_id' => 'required|uuid|exists:users,id',
             'subject' => 'nullable|string|max:255',
             'body' => 'required|string|max:5000',
-            'parent_id' => 'nullable|uuid|exists:messages,id',
         ]);
 
         if ($validator->fails()) {
@@ -126,14 +130,14 @@ class MessageController extends Controller
         }
 
         // Cannot message yourself
-        if ($request->recipient_id === $request->user()->id) {
+        if ($request->receiver_id === $request->user()->id) {
             return response()->json([
                 'message' => 'You cannot send a message to yourself',
             ], 400);
         }
 
         // Check if recipient exists
-        $recipient = User::find($request->recipient_id);
+        $recipient = User::find($request->receiver_id);
         if (!$recipient) {
             return response()->json([
                 'message' => 'Recipient not found',
@@ -142,17 +146,18 @@ class MessageController extends Controller
 
         $message = Message::create([
             'sender_id' => $request->user()->id,
-            'recipient_id' => $request->recipient_id,
+            'receiver_id' => $request->receiver_id,
             'subject' => $request->subject,
             'body' => $request->body,
-            'parent_id' => $request->parent_id,
+            'message_type' => Message::TYPE_DIRECT,
+            'status' => Message::STATUS_SENT,
         ]);
 
         // TODO: Send notification to recipient
 
         return response()->json([
             'message' => 'Message sent successfully',
-            'data' => $message->load(['sender', 'recipient']),
+            'data' => $message->load(['sender', 'receiver']),
         ], 201);
     }
 
@@ -164,9 +169,9 @@ class MessageController extends Controller
         $message = Message::where('id', $id)
             ->where(function($query) use ($request) {
                 $query->where('sender_id', $request->user()->id)
-                      ->orWhere('recipient_id', $request->user()->id);
+                      ->orWhere('receiver_id', $request->user()->id);
             })
-            ->with(['sender', 'recipient'])
+            ->with(['sender', 'receiver'])
             ->first();
 
         if (!$message) {
@@ -175,8 +180,8 @@ class MessageController extends Controller
             ], 404);
         }
 
-        // Mark as read if user is recipient
-        if ($message->recipient_id === $request->user()->id && !$message->read_at) {
+        // Mark as read if user is receiver
+        if ($message->receiver_id === $request->user()->id && !$message->read_at) {
             $message->update(['read_at' => now()]);
         }
 
@@ -191,7 +196,7 @@ class MessageController extends Controller
     public function markAsRead(Request $request, $id)
     {
         $message = Message::where('id', $id)
-            ->where('recipient_id', $request->user()->id)
+            ->where('receiver_id', $request->user()->id)
             ->first();
 
         if (!$message) {
