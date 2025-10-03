@@ -184,27 +184,48 @@ class User extends Authenticatable
     }
 
     /**
-     * Get all experiences for this user.
+     * Get all experiences through talent profile.
      */
     public function experiences()
     {
-        return $this->hasMany(Experience::class);
+        return $this->hasManyThrough(
+            Experience::class,
+            TalentProfile::class,
+            'user_id',           // Foreign key on talent_profiles table
+            'talent_profile_id', // Foreign key on experiences table
+            'id',                // Local key on users table
+            'id'                 // Local key on talent_profiles table
+        );
     }
 
     /**
-     * Get all education records for this user.
+     * Get all education records through talent profile.
      */
     public function education()
     {
-        return $this->hasMany(Education::class);
+        return $this->hasManyThrough(
+            Education::class,
+            TalentProfile::class,
+            'user_id',           // Foreign key on talent_profiles table
+            'talent_profile_id', // Foreign key on education table
+            'id',                // Local key on users table
+            'id'                 // Local key on talent_profiles table
+        );
     }
 
     /**
-     * Get all portfolios for this user.
+     * Get all portfolios through talent profile.
      */
     public function portfolios()
     {
-        return $this->hasMany(Portfolio::class);
+        return $this->hasManyThrough(
+            Portfolio::class,
+            TalentProfile::class,
+            'user_id',           // Foreign key on talent_profiles table
+            'talent_profile_id', // Foreign key on portfolios table
+            'id',                // Local key on users table
+            'id'                 // Local key on talent_profiles table
+        );
     }
 
     /**
