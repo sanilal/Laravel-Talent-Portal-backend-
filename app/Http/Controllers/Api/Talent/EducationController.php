@@ -52,7 +52,10 @@ class EducationController extends Controller
             $request->merge(['end_date' => null]);
         }
 
-        $education = $request->user()->education()->create($request->all());
+        $education = $request->user()->education()->create($request->only([
+            'institution', 'degree', 'field_of_study', 'start_date', 'end_date',
+            'is_current', 'grade', 'description', 'activities'
+        ]));
 
         return response()->json([
             'message' => 'Education added successfully',
@@ -121,7 +124,10 @@ class EducationController extends Controller
             $request->merge(['end_date' => null]);
         }
 
-        $education->update($request->all());
+        $education->update($request->only([
+            'institution', 'degree', 'field_of_study', 'start_date', 'end_date',
+            'is_current', 'grade', 'description', 'activities'
+        ]));
 
         return response()->json([
             'message' => 'Education updated successfully',
