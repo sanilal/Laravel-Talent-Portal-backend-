@@ -17,8 +17,8 @@ class MessageController extends Controller
     public function index(Request $request)
     {
         $messages = Message::where('sender_id', $request->user()->id)
-            ->orWhere('receiver_id', $request->user()->id)
-            ->with(['sender', 'receiver'])
+            ->orWhere('recipient_id', $request->user()->id)
+            ->with(['sender', 'recipient'])
             ->orderByDesc('created_at')
             ->paginate(20);
 
