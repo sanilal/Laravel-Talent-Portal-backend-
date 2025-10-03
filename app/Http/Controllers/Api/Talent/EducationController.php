@@ -15,6 +15,7 @@ class EducationController extends Controller
     {
         $education = $request->user()
             ->education()
+            ->orderByDesc('is_current')
             ->orderByDesc('start_date')
             ->get();
 
@@ -29,15 +30,18 @@ class EducationController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'institution' => 'required|string|max:255',
+            'institution_name' => 'required|string|max:255',
             'degree' => 'required|string|max:255',
-            'field_of_study' => 'required|string|max:255',
+            'field_of_study' => 'nullable|string|max:255',
             'start_date' => 'required|date',
             'end_date' => 'nullable|date|after:start_date',
             'is_current' => 'boolean',
             'grade' => 'nullable|string|max:50',
-            'description' => 'nullable|string|max:2000',
-            'activities' => 'nullable|string|max:1000',
+            'description' => 'nullable|string',
+            'activities' => 'nullable|array',
+            'certifications' => 'nullable|array',
+            'institution_website' => 'nullable|url|max:255',
+            'attachments' => 'nullable|array',
         ]);
 
         if ($validator->fails()) {
@@ -47,15 +51,24 @@ class EducationController extends Controller
             ], 422);
         }
 
+        // Get the user's talent profile ID
+        $talentProfileId = $request->user()->talentProfile->id;
+
         // If is_current is true, end_date should be null
+        $data = $request->only([
+            'institution_name', 'degree', 'field_of_study', 'start_date', 'end_date',
+            'is_current', 'grade', 'description', 'activities', 'certifications',
+            'institution_website', 'attachments'
+        ]);
+
         if ($request->is_current) {
-            $request->merge(['end_date' => null]);
+            $data['end_date'] = null;
         }
 
-        $education = $request->user()->education()->create($request->only([
-            'institution', 'degree', 'field_of_study', 'start_date', 'end_date',
-            'is_current', 'grade', 'description', 'activities'
-        ]));
+        // Add talent_profile_id
+        $data['talent_profile_id'] = $talentProfileId;
+
+        $education = $request->user()->education()->create($data);
 
         return response()->json([
             'message' => 'Education added successfully',
@@ -90,15 +103,18 @@ class EducationController extends Controller
     public function update(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
-            'institution' => 'sometimes|string|max:255',
+            'institution_name' => 'sometimes|string|max:255',
             'degree' => 'sometimes|string|max:255',
-            'field_of_study' => 'sometimes|string|max:255',
+            'field_of_study' => 'nullable|string|max:255',
             'start_date' => 'sometimes|date',
             'end_date' => 'nullable|date|after:start_date',
             'is_current' => 'boolean',
             'grade' => 'nullable|string|max:50',
-            'description' => 'nullable|string|max:2000',
-            'activities' => 'nullable|string|max:1000',
+            'description' => 'nullable|string',
+            'activities' => 'nullable|array',
+            'certifications' => 'nullable|array',
+            'institution_website' => 'nullable|url|max:255',
+            'attachments' => 'nullable|array',
         ]);
 
         if ($validator->fails()) {
@@ -120,14 +136,17 @@ class EducationController extends Controller
         }
 
         // If is_current is true, end_date should be null
+        $data = $request->only([
+            'institution_name', 'degree', 'field_of_study', 'start_date', 'end_date',
+            'is_current', 'grade', 'description', 'activities', 'certifications',
+            'institution_website', 'attachments'
+        ]);
+
         if ($request->has('is_current') && $request->is_current) {
-            $request->merge(['end_date' => null]);
+            $data['end_date'] = null;
         }
 
-        $education->update($request->only([
-            'institution', 'degree', 'field_of_study', 'start_date', 'end_date',
-            'is_current', 'grade', 'description', 'activities'
-        ]));
+        $education->update($data);
 
         return response()->json([
             'message' => 'Education updated successfully',
