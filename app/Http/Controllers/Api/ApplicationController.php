@@ -78,16 +78,16 @@ class ApplicationController extends Controller
         }
 
         // Create application
-        $application = Application::create([
-            'project_id' => $request->project_id,
-            'talent_id' => $request->user()->id,
-            'cover_letter' => $request->cover_letter,
-            'proposed_rate' => $request->proposed_rate,
-            'proposed_duration' => $request->proposed_duration,
-            'estimated_start_date' => $request->estimated_start_date,
-            'attachments' => $request->attachments,
-            'status' => 'pending',
-        ]);
+        $application = Application::create(array_merge(
+            $request->only([
+                'project_id', 'cover_letter', 'proposed_rate', 
+                'proposed_duration', 'estimated_start_date', 'attachments'
+            ]),
+            [
+                'talent_id' => $request->user()->id,
+                'status' => 'pending',
+            ]
+        ));
 
         // TODO: Send notification to project owner
 
