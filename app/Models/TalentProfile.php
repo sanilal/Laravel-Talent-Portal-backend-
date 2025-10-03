@@ -80,11 +80,11 @@ class TalentProfile extends Model
     }
 
     /**
-     * Get all skills through the user relationship
+     * Get all skills for this talent profile
      */
     public function skills()
     {
-        return $this->hasMany(TalentSkill::class, 'user_id', 'user_id');
+        return $this->hasMany(TalentSkill::class, 'talent_profile_id');
     }
 
     /**
