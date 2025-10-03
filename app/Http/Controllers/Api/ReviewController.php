@@ -17,7 +17,7 @@ class ReviewController extends Controller
      */
     public function getUserReviews($userId)
     {
-        $reviews = Review::where('reviewed_user_id', $userId)
+        $reviews = Review::where('reviewee_id', $userId)
             ->with(['reviewer', 'project'])
             ->orderByDesc('created_at')
             ->get();
@@ -44,94 +44,94 @@ class ReviewController extends Controller
      * Create a new review
      */
     public function store(Request $request)
-        {
-            $validator = Validator::make($request->all(), [
-                'reviewed_user_id' => 'required|uuid|exists:users,id',
-                'project_id' => 'nullable|uuid|exists:projects,id',
-                'rating' => 'required|integer|min:1|max:5',
-                'comment' => 'required|string|min:10|max:1000',
-            ]);
+    {
+        $validator = Validator::make($request->all(), [
+            'reviewee_id' => 'required|uuid|exists:users,id',
+            'project_id' => 'nullable|uuid|exists:projects,id',
+            'rating' => 'required|numeric|min:1|max:5',
+            'comment' => 'required|string|min:10|max:1000',
+        ]);
 
-            if ($validator->fails()) {
-                return response()->json([
-                    'message' => 'Validation failed',
-                    'errors' => $validator->errors()
-                ], 422);
-            }
-
-            // Cannot review yourself
-            if ($request->reviewed_user_id === $request->user()->id) {
-                return response()->json([
-                    'message' => 'You cannot review yourself',
-                ], 400);
-            }
-
-            // Check if already reviewed this user for this project
-            if ($request->project_id) {
-                $existingReview = Review::where('reviewer_id', $request->user()->id)
-                    ->where('reviewed_user_id', $request->reviewed_user_id)
-                    ->where('project_id', $request->project_id)
-                    ->first();
-
-                if ($existingReview) {
-                    return response()->json([
-                        'message' => 'You have already reviewed this user for this project',
-                    ], 409);
-                }
-            }
-
-            // Verify they worked together on this project
-            if ($request->project_id) {
-                $project = Project::find($request->project_id);
-                
-                // Check if reviewer and reviewed user both participated in this project
-                $workedTogether = false;
-                
-                // Case 1: Recruiter reviewing talent
-                if ($project->recruiter_id === $request->user()->id) {
-                    $workedTogether = Application::where('project_id', $request->project_id)
-                        ->where('talent_id', $request->reviewed_user_id)
-                        ->where('status', 'accepted')
-                        ->exists();
-                }
-                
-                // Case 2: Talent reviewing recruiter
-                elseif ($project && $project->recruiter_id === $request->reviewed_user_id) {
-                    $workedTogether = Application::where('project_id', $request->project_id)
-                        ->where('talent_id', $request->user()->id)
-                        ->where('status', 'accepted')
-                        ->exists();
-                }
-                
-                if (!$workedTogether) {
-                    return response()->json([
-                        'message' => 'You can only review users you have worked with on this project',
-                    ], 403);
-                }
-            }
-
-            $review = Review::create(array_merge(
-                $request->only(['reviewed_user_id', 'project_id', 'rating', 'comment']),
-                ['reviewer_id' => $request->user()->id]
-            ));
-
-            // Update user's average rating
-            $this->updateUserRating($request->reviewed_user_id);
-
-            // TODO: Send notification to reviewed user
-
+        if ($validator->fails()) {
             return response()->json([
-                'message' => 'Review submitted successfully',
-                'review' => $review->load('reviewer'),
-            ], 201);
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
         }
+
+        // Cannot review yourself
+        if ($request->reviewee_id === $request->user()->id) {
+            return response()->json([
+                'message' => 'You cannot review yourself',
+            ], 400);
+        }
+
+        // Check if already reviewed this user for this project
+        if ($request->project_id) {
+            $existingReview = Review::where('reviewer_id', $request->user()->id)
+                ->where('reviewee_id', $request->reviewee_id)
+                ->where('project_id', $request->project_id)
+                ->first();
+
+            if ($existingReview) {
+                return response()->json([
+                    'message' => 'You have already reviewed this user for this project',
+                ], 409);
+            }
+        }
+
+        // Verify they worked together on this project
+        if ($request->project_id) {
+            $project = Project::find($request->project_id);
+
+            // Check if reviewer and reviewed user both participated in this project
+            $workedTogether = false;
+
+            // Case 1: Recruiter reviewing talent
+            if ($project->recruiter_id === $request->user()->id) {
+                $workedTogether = Application::where('project_id', $request->project_id)
+                    ->where('talent_id', $request->reviewee_id)
+                    ->where('status', 'accepted')
+                    ->exists();
+            }
+
+            // Case 2: Talent reviewing recruiter
+            elseif ($project && $project->recruiter_id === $request->reviewee_id) {
+                $workedTogether = Application::where('project_id', $request->project_id)
+                    ->where('talent_id', $request->user()->id)
+                    ->where('status', 'accepted')
+                    ->exists();
+            }
+
+            if (!$workedTogether) {
+                return response()->json([
+                    'message' => 'You can only review users you have worked with on this project',
+                ], 403);
+            }
+        }
+
+        $review = Review::create(array_merge(
+            $request->only(['reviewee_id', 'project_id', 'rating', 'comment']),
+            ['reviewer_id' => $request->user()->id]
+        ));
+
+        // Update user's average rating
+        $this->updateUserRating($request->reviewee_id);
+
+        // TODO: Send notification to reviewed user
+
+        return response()->json([
+            'message' => 'Review submitted successfully',
+            'review' => $review->load('reviewer'),
+        ], 201);
+    }
 
     /**
      * Get single review
      */
     public function show($id)
     {
-        $review = Review::with(['reviewer', 'reviewedUser', 'project'])
+        $review = Review::with(['reviewer', 'reviewee', 'project'])
             ->find($id);
 
         if (!$review) {
@@ -151,7 +151,7 @@ class ReviewController extends Controller
     public function update(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
-            'rating' => 'sometimes|integer|min:1|max:5',
+            'rating' => 'sometimes|numeric|min:1|max:5',
             'comment' => 'sometimes|string|min:10|max:1000',
         ]);
 
@@ -180,7 +180,7 @@ class ReviewController extends Controller
         $review->update($request->only(['rating', 'comment']));
 
         // Update user's average rating
-        $this->updateUserRating($review->reviewed_user_id);
+        $this->updateUserRating($review->reviewee_id);
 
         return response()->json([
             'message' => 'Review updated successfully',
@@ -208,11 +208,11 @@ class ReviewController extends Controller
             ], 403);
         }
 
-        $reviewedUserId = $review->reviewed_user_id;
+        $revieweeId = $review->reviewee_id;
         $review->delete();
 
         // Update user's average rating
-        $this->updateUserRating($reviewedUserId);
+        $this->updateUserRating($revieweeId);
 
         return response()->json([
             'message' => 'Review deleted successfully',
@@ -225,12 +225,12 @@ class ReviewController extends Controller
     private function updateUserRating($userId)
     {
         $user = User::find($userId);
-        
+
         if (!$user) {
             return;
         }
 
-        $reviews = Review::where('reviewed_user_id', $userId)->get();
+        $reviews = Review::where('reviewee_id', $userId)->get();
         $averageRating = $reviews->avg('rating') ?? 0;
         $totalRatings = $reviews->count();
 
