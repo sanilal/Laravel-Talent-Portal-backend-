@@ -229,11 +229,11 @@ class User extends Authenticatable
     }
 
     /**
-     * Get all job applications by this user.
+     * Get all job applications by this user (as talent).
      */
     public function applications()
     {
-        return $this->hasMany(Application::class);
+        return $this->hasMany(Application::class, 'talent_id');
     }
 
     /**
@@ -257,7 +257,7 @@ class User extends Authenticatable
      */
     public function receivedMessages()
     {
-        return $this->hasMany(Message::class, 'recipient_id');
+        return $this->hasMany(Message::class, 'receiver_id');
     }
 
     /**
