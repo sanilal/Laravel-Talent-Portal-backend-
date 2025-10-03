@@ -37,35 +37,35 @@ class MessageController extends Controller
         $conversations = Message::select('messages.*')
             ->where(function($query) use ($userId) {
                 $query->where('sender_id', $userId)
-                      ->orWhere('receiver_id', $userId);
+                      ->orWhere('recipient_id', $userId);
             })
             ->whereIn('created_at', function($query) use ($userId) {
                 $query->select(DB::raw('MAX(created_at)'))
                     ->from('messages')
                     ->where(function($q) use ($userId) {
                         $q->where('sender_id', $userId)
-                          ->orWhere('receiver_id', $userId);
+                          ->orWhere('recipient_id', $userId);
                     })
                     ->where('deleted_at', null)
                     ->groupBy(DB::raw('CASE 
-                        WHEN sender_id = \'' . $userId . '\' THEN receiver_id 
+                        WHEN sender_id = \'' . $userId . '\' THEN recipient_id 
                         ELSE sender_id 
                     END'));
             })
-            ->with(['sender', 'receiver'])
+            ->with(['sender', 'recipient'])
             ->orderByDesc('created_at')
             ->get()
             ->map(function($message) use ($userId) {
                 $partnerId = $message->sender_id === $userId
-                    ? $message->receiver_id
+                    ? $message->recipient_id
                     : $message->sender_id;
 
                 $partner = $message->sender_id === $userId
-                    ? $message->receiver
+                    ? $message->recipient
                     : $message->sender;
 
                 $unreadCount = Message::where('sender_id', $partnerId)
-                    ->where('receiver_id', $userId)
+                    ->where('recipient_id', $userId)
                     ->whereNull('read_at')
                     ->count();
 
