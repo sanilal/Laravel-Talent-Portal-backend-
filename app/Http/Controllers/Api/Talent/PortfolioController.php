@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api\Talent;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class PortfolioController extends Controller
 {
@@ -17,7 +17,7 @@ class PortfolioController extends Controller
         $portfolios = $request->user()
             ->portfolios()
             ->orderByDesc('is_featured')
-            ->orderByDesc('completed_at')
+            ->orderByDesc('completion_date')
             ->get();
 
         return response()->json([
@@ -32,15 +32,23 @@ class PortfolioController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'title' => 'required|string|max:255',
-            'description' => 'required|string|max:2000',
+            'description' => 'required|string',
+            'category_id' => 'nullable|uuid|exists:categories,id',
+            'project_type' => 'nullable|string|max:255',
+            'skills_demonstrated' => 'nullable|array',
             'project_url' => 'nullable|url|max:500',
-            'repository_url' => 'nullable|url|max:500',
-            'technologies' => 'nullable|array',
-            'technologies.*' => 'string|max:100',
-            'completed_at' => 'nullable|date',
+            'external_url' => 'nullable|url|max:500',
+            'completion_date' => 'nullable|date',
+            'client_name' => 'nullable|string|max:255',
+            'director_name' => 'nullable|string|max:255',
+            'role_description' => 'nullable|string',
+            'challenges_faced' => 'nullable|string',
+            'collaborators' => 'nullable|array',
+            'awards' => 'nullable|array',
             'is_featured' => 'boolean',
-            'images' => 'nullable|array',
-            'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:5120',
+            'is_public' => 'boolean',
+            'is_demo_reel' => 'boolean',
+            'metadata' => 'nullable|array',
         ]);
 
         if ($validator->fails()) {
@@ -50,20 +58,19 @@ class PortfolioController extends Controller
             ], 422);
         }
 
+        // Get the user's talent profile ID
+        $talentProfileId = $request->user()->talentProfile->id;
+
         $portfolioData = $request->only([
-            'title', 'description', 'project_url', 'repository_url', 
-            'technologies', 'completed_at', 'is_featured'
+            'title', 'description', 'category_id', 'project_type', 'skills_demonstrated',
+            'project_url', 'external_url', 'completion_date', 'client_name', 'director_name',
+            'role_description', 'challenges_faced', 'collaborators', 'awards',
+            'is_featured', 'is_public', 'is_demo_reel', 'metadata'
         ]);
-        
-        // Handle image uploads
-        if ($request->hasFile('images')) {
-            $imageUrls = [];
-            foreach ($request->file('images') as $image) {
-                $path = $image->store('portfolios', 'public');
-                $imageUrls[] = $path;
-            }
-            $portfolioData['images'] = $imageUrls;
-        }
+
+        // Add talent_profile_id and generate slug
+        $portfolioData['talent_profile_id'] = $talentProfileId;
+        $portfolioData['slug'] = Str::slug($request->title) . '-' . Str::random(6);
 
         $portfolio = $request->user()->portfolios()->create($portfolioData);
 
@@ -89,6 +96,9 @@ class PortfolioController extends Controller
             ], 404);
         }
 
+        // Increment views count
+        $portfolio->increment('views_count');
+
         return response()->json([
             'portfolio' => $portfolio,
         ]);
@@ -101,16 +111,23 @@ class PortfolioController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'title' => 'sometimes|string|max:255',
-            'description' => 'sometimes|string|max:2000',
+            'description' => 'sometimes|string',
+            'category_id' => 'nullable|uuid|exists:categories,id',
+            'project_type' => 'nullable|string|max:255',
+            'skills_demonstrated' => 'nullable|array',
             'project_url' => 'nullable|url|max:500',
-            'repository_url' => 'nullable|url|max:500',
-            'technologies' => 'nullable|array',
-            'technologies.*' => 'string|max:100',
-            'completed_at' => 'nullable|date',
+            'external_url' => 'nullable|url|max:500',
+            'completion_date' => 'nullable|date',
+            'client_name' => 'nullable|string|max:255',
+            'director_name' => 'nullable|string|max:255',
+            'role_description' => 'nullable|string',
+            'challenges_faced' => 'nullable|string',
+            'collaborators' => 'nullable|array',
+            'awards' => 'nullable|array',
             'is_featured' => 'boolean',
-            'new_images' => 'nullable|array',
-            'new_images.*' => 'image|mimes:jpeg,png,jpg,gif|max:5120',
-            'remove_images' => 'nullable|array',
+            'is_public' => 'boolean',
+            'is_demo_reel' => 'boolean',
+            'metadata' => 'nullable|array',
         ]);
 
         if ($validator->fails()) {
@@ -132,30 +149,15 @@ class PortfolioController extends Controller
         }
 
         $updateData = $request->only([
-            'title', 'description', 'project_url', 'repository_url', 
-            'technologies', 'completed_at', 'is_featured'
+            'title', 'description', 'category_id', 'project_type', 'skills_demonstrated',
+            'project_url', 'external_url', 'completion_date', 'client_name', 'director_name',
+            'role_description', 'challenges_faced', 'collaborators', 'awards',
+            'is_featured', 'is_public', 'is_demo_reel', 'metadata'
         ]);
-        
-        // Handle image removals
-        if ($request->has('remove_images')) {
-            $currentImages = $portfolio->images ?? [];
-            foreach ($request->remove_images as $imageToRemove) {
-                if (in_array($imageToRemove, $currentImages)) {
-                    Storage::disk('public')->delete($imageToRemove);
-                    $currentImages = array_values(array_diff($currentImages, [$imageToRemove]));
-                }
-            }
-            $updateData['images'] = $currentImages;
-        }
 
-        // Handle new image uploads
-        if ($request->hasFile('new_images')) {
-            $currentImages = $portfolio->images ?? [];
-            foreach ($request->file('new_images') as $image) {
-                $path = $image->store('portfolios', 'public');
-                $currentImages[] = $path;
-            }
-            $updateData['images'] = $currentImages;
+        // Update slug if title changed
+        if ($request->has('title')) {
+            $updateData['slug'] = Str::slug($request->title) . '-' . Str::random(6);
         }
 
         $portfolio->update($updateData);
@@ -180,13 +182,6 @@ class PortfolioController extends Controller
             return response()->json([
                 'message' => 'Portfolio not found',
             ], 404);
-        }
-
-        // Delete associated images
-        if ($portfolio->images) {
-            foreach ($portfolio->images as $image) {
-                Storage::disk('public')->delete($image);
-            }
         }
 
         $portfolio->delete();
