@@ -36,13 +36,15 @@ class User extends Authenticatable
         'two_factor_secret',
         'two_factor_recovery_codes',
         'two_factor_confirmed_at',
-        'account_statuse',
+        'account_status',
         'last_login_at',
+        'last_login_ip',
         'last_activity_at',
         'login_attempts',
         'locked_until',
         'preferences',
         'privacy_settings',
+        'two_factor_enabled',
     ];
 
     /**
@@ -70,6 +72,7 @@ class User extends Authenticatable
         'preferences' => 'array',
         'privacy_settings' => 'array',
         'password' => 'hashed',
+        'two_factor_enabled' => 'boolean',
     ];
 
     /**
@@ -158,6 +161,61 @@ class User extends Authenticatable
     }
 
     /**
+     * Get all talent skills through talent profile.
+     */
+    public function skills()
+    {
+        return $this->hasManyThrough(
+            TalentSkill::class,
+            TalentProfile::class,
+            'user_id',           // Foreign key on talent_profiles table
+            'talent_profile_id', // Foreign key on talent_skills table
+            'id',                // Local key on users table
+            'id'                 // Local key on talent_profiles table
+        );
+    }
+
+    /**
+     * Alias for skills relationship
+     */
+    public function talentSkills()
+    {
+        return $this->skills();
+    }
+
+    /**
+     * Get all experiences for this user.
+     */
+    public function experiences()
+    {
+        return $this->hasMany(Experience::class);
+    }
+
+    /**
+     * Get all education records for this user.
+     */
+    public function education()
+    {
+        return $this->hasMany(Education::class);
+    }
+
+    /**
+     * Get all portfolios for this user.
+     */
+    public function portfolios()
+    {
+        return $this->hasMany(Portfolio::class);
+    }
+
+    /**
+     * Get all job applications by this user.
+     */
+    public function applications()
+    {
+        return $this->hasMany(Application::class);
+    }
+
+    /**
      * Get all media uploaded by this user.
      */
     public function media()
@@ -226,7 +284,7 @@ class User extends Authenticatable
      */
     public function scopeActive($query)
     {
-        return $query->where('status', self::STATUS_ACTIVE);
+        return $query->where('account_status', self::STATUS_ACTIVE);
     }
 
     /**
