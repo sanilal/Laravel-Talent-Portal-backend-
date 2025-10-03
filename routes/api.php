@@ -28,15 +28,15 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::prefix('v1')->group(function () {
-    
+
     // ============================================
     // HEALTH & TEST ENDPOINTS
     // ============================================
-    
+
     Route::get('/test', function () {
         return response()->json(['status' => 'ok']);
     });
-    
+
     Route::get('/health', function () {
         return response()->json([
             'status' => 'ok',
@@ -44,11 +44,11 @@ Route::prefix('v1')->group(function () {
             'timestamp' => now()->toIso8601String()
         ]);
     });
-    
+
     // ============================================
     // PUBLIC ROUTES (No Authentication Required)
     // ============================================
-    
+
     Route::prefix('public')->name('public.')->group(function () {
         Route::get('/categories', [PublicController::class, 'categories'])->name('categories');
         Route::get('/skills', [PublicController::class, 'skills'])->name('skills');
@@ -57,13 +57,13 @@ Route::prefix('v1')->group(function () {
         Route::get('/talents', [PublicController::class, 'talents'])->name('talents');
         Route::get('/talents/{id}', [PublicController::class, 'showTalent'])->name('talents.show');
     });
-    
+
     // ============================================
     // AUTHENTICATION ROUTES
     // ============================================
-    
+
     Route::prefix('auth')->name('auth.')->group(function () {
-        
+
         // Public authentication endpoints
         Route::post('/register', [AuthController::class, 'register'])->name('register');
         Route::post('/login', [AuthController::class, 'login'])->name('login');
@@ -71,7 +71,7 @@ Route::prefix('v1')->group(function () {
             ->middleware('throttle:5,1')
             ->name('forgot-password');
         Route::post('/reset-password', [PasswordResetController::class, 'reset'])->name('reset-password');
-        
+
         // Protected authentication endpoints
         Route::middleware('auth:sanctum')->group(function () {
             Route::get('/me', [AuthController::class, 'me'])->name('me');
@@ -80,34 +80,34 @@ Route::prefix('v1')->group(function () {
             Route::post('/refresh-token', [AuthController::class, 'refreshToken'])->name('refresh');
             Route::put('/update-profile', [AuthController::class, 'updateProfile'])->name('update-profile');
             Route::post('/change-password', [AuthController::class, 'changePassword'])->name('change-password');
-            
+
             // Session management
             Route::get('/sessions', [AuthController::class, 'sessions'])->name('sessions');
             Route::delete('/sessions/{tokenId}', [AuthController::class, 'revokeSession'])->name('sessions.revoke');
         });
     });
-    
+
     // ============================================
     // EMAIL VERIFICATION (API-based)
     // ============================================
-    
+
     Route::prefix('email')->middleware('auth:sanctum')->name('email.')->group(function () {
         Route::post('/verification-notification', [EmailVerificationController::class, 'send'])
             ->middleware('throttle:6,1')
             ->name('verification.send');
         Route::post('/verify', [EmailVerificationController::class, 'verify'])->name('verify');
-        Route::get('/verification-status', [EmailVerificationController::class, 'status'])->name('verification.status');
+        Route::get('/verification-status', [EmailVerificationController::class, 'status'])->name('verification.status');        
     });
-    
+
     // ============================================
     // TWO-FACTOR AUTHENTICATION
     // ============================================
-    
+
     Route::prefix('two-factor')->name('2fa.')->group(function () {
-        
+
         // 2FA verification during login (no auth required)
         Route::post('/verify', [TwoFactorController::class, 'verify'])->name('verify');
-        
+
         // Protected 2FA management
         Route::middleware('auth:sanctum')->group(function () {
             Route::post('/enable', [TwoFactorController::class, 'enable'])->name('enable');
@@ -118,19 +118,19 @@ Route::prefix('v1')->group(function () {
             Route::post('/recovery-codes', [TwoFactorController::class, 'regenerateRecoveryCodes'])->name('recovery-codes.regenerate');
         });
     });
-    
+
     // ============================================
     // PROTECTED ROUTES (Require Authentication)
     // ============================================
-    
+
     Route::middleware('auth:sanctum')->group(function () {
-        
+
         // ============================================
         // TALENT ROUTES (Talent Role Required)
         // ============================================
-        
-        Route::prefix('talent')->middleware('ability:talent')->name('talent.')->group(function () {
-            
+
+        Route::prefix('talent')->middleware('role:talent')->name('talent.')->group(function () {
+
             // Profile management
             Route::get('/profile', [TalentProfileController::class, 'show'])->name('profile');
             Route::put('/profile', [TalentProfileController::class, 'update'])->name('profile.update');
@@ -168,41 +168,41 @@ Route::prefix('v1')->group(function () {
             Route::get('/applications', [ApplicationController::class, 'index'])->name('applications.index');
             Route::get('/applications/{id}', [ApplicationController::class, 'show'])->name('applications.show');
         });
-        
+
         // ============================================
         // RECRUITER ROUTES (Recruiter Role Required)
         // ============================================
-        
-        Route::prefix('recruiter')->middleware('ability:recruiter')->name('recruiter.')->group(function () {
-            
+
+        Route::prefix('recruiter')->middleware('role:recruiter')->name('recruiter.')->group(function () {
+
             // Profile management
             Route::get('/profile', [RecruiterController::class, 'profile'])->name('profile');
             Route::put('/profile', [RecruiterController::class, 'updateProfile'])->name('profile.update');
             Route::post('/profile/logo', [RecruiterController::class, 'updateLogo'])->name('profile.logo');
-            
+
             // Dashboard
             Route::get('/dashboard', [RecruiterController::class, 'dashboard'])->name('dashboard');
-            
+
             // Talent search and management
             Route::get('/talents/search', [RecruiterController::class, 'searchTalents'])->name('talents.search');
             Route::get('/talents/{id}', [RecruiterController::class, 'viewTalent'])->name('talents.show');
             Route::post('/talents/{id}/save', [RecruiterController::class, 'saveTalent'])->name('talents.save');
-            Route::delete('/talents/{id}/unsave', [RecruiterController::class, 'unsaveTalent'])->name('talents.unsave');
+            Route::delete('/talents/{id}/unsave', [RecruiterController::class, 'unsaveTalent'])->name('talents.unsave');        
         });
-        
+
         // ============================================
         // PROJECT ROUTES
         // ============================================
-        
+
         Route::prefix('projects')->name('projects.')->group(function () {
-            
+
             // Public project routes (authenticated users)
             Route::get('/', [ProjectController::class, 'index'])->name('index');
             Route::get('/search', [ProjectController::class, 'search'])->name('search');
             Route::get('/{id}', [ProjectController::class, 'show'])->name('show');
-            
+
             // Recruiter-only project routes
-            Route::middleware('ability:recruiter')->group(function () {
+            Route::middleware('role:recruiter')->group(function () {
                 Route::post('/', [ProjectController::class, 'store'])->name('store');
                 Route::put('/{id}', [ProjectController::class, 'update'])->name('update');
                 Route::delete('/{id}', [ProjectController::class, 'destroy'])->name('destroy');
@@ -211,35 +211,35 @@ Route::prefix('v1')->group(function () {
                 Route::get('/{id}/applications', [ProjectController::class, 'applications'])->name('applications');
             });
         });
-        
+
         // ============================================
         // APPLICATION ROUTES
         // ============================================
-        
+
         Route::prefix('applications')->name('applications.')->group(function () {
-            
+
             // Apply to project (talent only)
             Route::post('/', [ApplicationController::class, 'store'])
-                ->middleware('ability:talent')
+                ->middleware('role:talent')
                 ->name('store');
-            
+
             // View application (accessible to both talent and recruiter)
             Route::get('/{id}', [ApplicationController::class, 'show'])->name('show');
-            
+
             // Update application status (recruiter or talent can update based on logic in controller)
             Route::put('/{id}/status', [ApplicationController::class, 'updateStatus'])->name('status');
-            
+
             // Add notes (recruiter only - enforced in controller)
             Route::post('/{id}/notes', [ApplicationController::class, 'addNotes'])->name('notes');
-            
+
             // Withdraw application (talent only - enforced in controller)
             Route::delete('/{id}', [ApplicationController::class, 'destroy'])->name('withdraw');
         });
-        
+
         // ============================================
         // REVIEW ROUTES
         // ============================================
-        
+
         Route::prefix('reviews')->name('reviews.')->group(function () {
             Route::get('/user/{userId}', [ReviewController::class, 'getUserReviews'])->name('user');
             Route::post('/', [ReviewController::class, 'store'])->name('store');
@@ -247,11 +247,11 @@ Route::prefix('v1')->group(function () {
             Route::put('/{id}', [ReviewController::class, 'update'])->name('update');
             Route::delete('/{id}', [ReviewController::class, 'destroy'])->name('destroy');
         });
-        
+
         // ============================================
         // MESSAGE ROUTES
         // ============================================
-        
+
         Route::prefix('messages')->name('messages.')->group(function () {
             Route::get('/', [MessageController::class, 'index'])->name('index');
             Route::get('/conversations', [MessageController::class, 'conversations'])->name('conversations');
@@ -261,11 +261,11 @@ Route::prefix('v1')->group(function () {
             Route::put('/{id}/read', [MessageController::class, 'markAsRead'])->name('read');
             Route::delete('/{id}', [MessageController::class, 'destroy'])->name('destroy');
         });
-        
+
         // ============================================
         // NOTIFICATION ROUTES
         // ============================================
-        
+
         Route::prefix('notifications')->name('notifications.')->group(function () {
             Route::get('/', [NotificationController::class, 'index'])->name('index');
             Route::get('/unread', [NotificationController::class, 'unread'])->name('unread');
@@ -274,25 +274,25 @@ Route::prefix('v1')->group(function () {
             Route::delete('/{id}', [NotificationController::class, 'destroy'])->name('destroy');
             Route::delete('/read/all', [NotificationController::class, 'deleteAllRead'])->name('delete-all-read');
         });
-        
+
         // ============================================
         // MEDIA UPLOAD ROUTES
         // ============================================
-        
+
         Route::prefix('media')->name('media.')->group(function () {
             Route::post('/upload', [MediaController::class, 'upload'])->name('upload');
             Route::get('/{id}', [MediaController::class, 'show'])->name('show');
             Route::delete('/{id}', [MediaController::class, 'delete'])->name('delete');
         });
-        
+
     }); // End of protected routes
-    
+
     // ============================================
     // ADMIN ROUTES (Admin Role Required)
     // ============================================
-    
-    Route::prefix('admin')->middleware(['auth:sanctum', 'ability:admin'])->name('admin.')->group(function () {
-        
+
+    Route::prefix('admin')->middleware(['auth:sanctum', 'role:admin'])->name('admin.')->group(function () {
+
         // Dashboard
         Route::get('/dashboard', function () {
             return response()->json([
@@ -304,32 +304,32 @@ Route::prefix('v1')->group(function () {
                 ]
             ]);
         })->name('dashboard');
-        
+
         // User management
         Route::get('/users', function () {
             $users = \App\Models\User::paginate(20);
             return response()->json($users);
         })->name('users');
-        
+
         Route::put('/users/{id}/status', function ($id) {
             return response()->json(['message' => "Update user $id status"]);
         })->name('users.status');
-        
+
         // Project moderation
         Route::get('/projects/pending', function () {
             return response()->json(['message' => 'Pending projects']);
         })->name('projects.pending');
-        
+
         Route::post('/projects/{id}/approve', function ($id) {
             return response()->json(['message' => "Approve project $id"]);
         })->name('projects.approve');
-        
+
         // Reports and analytics
         Route::get('/reports', function () {
             return response()->json(['message' => 'Reports and analytics']);
         })->name('reports');
     });
-    
+
 }); // End of v1 prefix
 
 // ============================================

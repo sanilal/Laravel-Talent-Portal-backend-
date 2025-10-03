@@ -20,6 +20,7 @@ class TalentProfile extends Model
         'hourly_rate_min',
         'hourly_rate_max',
         'currency',
+        'avatar_url',
         'availability_types',
         'is_available',
         'work_preferences',
@@ -68,6 +69,22 @@ class TalentProfile extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class, 'primary_category_id');
+    }
+
+    /**
+     * Alias for category relationship (for backward compatibility)
+     */
+    public function primaryCategory(): BelongsTo
+    {
+        return $this->category();
+    }
+
+    /**
+     * Get all skills through the user relationship
+     */
+    public function skills()
+    {
+        return $this->hasMany(TalentSkill::class, 'user_id', 'user_id');
     }
 
     /**
