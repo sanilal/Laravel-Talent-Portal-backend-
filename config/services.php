@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'embeddings' => [
+        'url' => env('EMBEDDING_SERVICE_URL', 'http://localhost:5001'),
+        'model' => env('EMBEDDING_MODEL', 'all-MiniLM-L6-v2'),
+        'dimensions' => env('EMBEDDING_DIMENSIONS', 384),
+    ],
+
 ];
