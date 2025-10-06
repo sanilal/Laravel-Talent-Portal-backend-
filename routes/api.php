@@ -330,6 +330,49 @@ Route::prefix('v1')->group(function () {
         })->name('reports');
     });
 
+    // Test embedded service endpoint
+
+     Route::get('/test', function () {
+        return response()->json(['status' => 'ok']);
+    });
+
+    Route::get('/health', function () {
+        return response()->json([
+            'status' => 'ok',
+            'version' => '1.0.0',
+            'timestamp' => now()->toIso8601String()
+        ]);
+    });
+
+    // Embedding service test
+    Route::get('/test-embeddings', function () {
+        try {
+            $service = app(\App\Services\EmbeddingService::class);
+            
+            $testText = "Senior Full Stack Developer with expertise in Laravel, PostgreSQL, React, and Next.js";
+            
+            $embedding = $service->generateEmbedding($testText);
+            
+            return response()->json([
+                'success' => true,
+                'test_text' => $testText,
+                'embedding_dimensions' => count($embedding),
+                'first_5_values' => array_slice($embedding, 0, 5),
+                'service_url' => config('services.embeddings.url'),
+                'message' => 'Embedding service is working correctly!'
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ], 500);
+        }
+    });
+
+    // Test embedded service endpoint ends here
+
 }); // End of v1 prefix
 
 // ============================================
@@ -343,3 +386,7 @@ Route::fallback(function () {
         'available_endpoints' => '/api/v1/health'
     ], 404);
 });
+
+// Temporary embedding test endpoint
+
+   
