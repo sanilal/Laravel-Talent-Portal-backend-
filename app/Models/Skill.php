@@ -21,6 +21,8 @@ class Skill extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
+        'skill_embedding' => 'array',
+        'embeddings_generated_at' => 'datetime',
     ];
 
     // Relationships
