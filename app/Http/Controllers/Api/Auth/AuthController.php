@@ -161,7 +161,8 @@ class AuthController extends Controller
         ]);
 
         // Create token with role-based abilities
-        $deviceName = $request->device_name ?? $request->userAgent();
+      //  $deviceName = $request->device_name ?? $request->userAgent();
+        $deviceName = $request->device_name ?? $request->userAgent() ?? 'Unknown Device';
         $token = $user->createToken($deviceName, [$user->user_type])->plainTextToken;
 
         // Load the correct profile relationship
