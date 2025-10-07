@@ -53,6 +53,9 @@ class Portfolio extends Model
         'average_rating' => 'decimal:2',
         'total_ratings' => 'integer',
         'order' => 'integer',
+        'requirements_embedding' => 'array',
+        'required_skills_embedding' => 'array',
+        'embeddings_generated_at' => 'datetime',
     ];
 
     public function talentProfile()
