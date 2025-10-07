@@ -53,6 +53,10 @@ class TalentProfile extends Model
         'total_ratings' => 'integer',
         'profile_completion_percentage' => 'integer',
         'availability_updated_at' => 'datetime',
+        'profile_embedding' => 'array',
+        'skills_embedding' => 'array',
+        'experience_embedding' => 'array',
+        'embeddings_generated_at' => 'datetime',
     ];
 
     /**
