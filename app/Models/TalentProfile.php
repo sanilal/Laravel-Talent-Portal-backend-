@@ -35,6 +35,11 @@ class TalentProfile extends Model
         'total_ratings',
         'portfolio_highlights',
         'availability_updated_at',
+        'profile_embedding',
+        'skills_embedding',
+        'experience_embedding',
+        'embeddings_generated_at',
+        'embedding_model',
     ];
 
     protected $casts = [

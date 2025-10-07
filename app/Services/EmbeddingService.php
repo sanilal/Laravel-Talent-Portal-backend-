@@ -116,9 +116,9 @@ class EmbeddingService
 
             // Update profile with embeddings
             $profile->update([
-                'profile_embedding' => json_encode($embeddings[0]),
-                'skills_embedding' => json_encode($embeddings[1]),
-                'experience_embedding' => json_encode($embeddings[2]),
+                'profile_embedding' => $embeddings[0],
+                'skills_embedding' => $embeddings[1],
+                'experience_embedding' => $embeddings[2],
                 'embeddings_generated_at' => now(),
                 'embedding_model' => $this->modelName
             ]);
@@ -152,8 +152,8 @@ class EmbeddingService
             }
 
             $project->update([
-                'requirements_embedding' => json_encode($embeddings[0]),
-                'required_skills_embedding' => json_encode($embeddings[1]),
+                 'requirements_embedding' => $embeddings[0],
+                'required_skills_embedding' => $embeddings[1],
                 'embeddings_generated_at' => now(),
                 'embedding_model' => $this->modelName
             ]);
@@ -182,7 +182,7 @@ class EmbeddingService
             }
 
             $portfolio->update([
-                'description_embedding' => json_encode($embedding),
+                'description_embedding' => $embedding,
                 'embeddings_generated_at' => now(),
                 'embedding_model' => $this->modelName
             ]);
@@ -216,7 +216,7 @@ class EmbeddingService
             }
 
             $skill->update([
-                'skill_embedding' => json_encode($embedding),
+                'skill_embedding' => $embedding,
                 'embeddings_generated_at' => now(),
                 'embedding_model' => $this->modelName
             ]);
