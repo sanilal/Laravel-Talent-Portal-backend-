@@ -79,6 +79,9 @@ class Project extends Model
         'applications_count' => 'integer',
         'positions_available' => 'integer',
         'positions_filled' => 'integer',
+        'requirements_embedding' => 'array',
+        'required_skills_embedding' => 'array',
+        'embeddings_generated_at' => 'datetime',
     ];
 
     /**
