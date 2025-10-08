@@ -2,47 +2,84 @@
 
 namespace App\Observers;
 
-use App\Models\project;
+use App\Models\Project;
+use App\Jobs\GenerateProjectEmbeddings;
+use Illuminate\Support\Facades\Log;
 
 class ProjectObserver
 {
     /**
-     * Handle the project "created" event.
+     * Handle the Project "saved" event.
      */
-    public function created(project $project): void
+    public function saved(Project $project): void
     {
-        //
+        // Check if embedding-relevant fields changed
+        $embeddingFields = [
+            'title',
+            'description',
+            'requirements',
+            'responsibilities',
+            'deliverables',
+            'project_type',
+            'work_type',
+            'experience_level',
+            'location',
+            'skills_required',
+            'budget_min',
+            'budget_max',
+            'budget_currency',
+            'budget_type',
+            'duration',
+        ];
+
+        $shouldRegenerate = false;
+
+        // For new projects, always generate embeddings
+        if ($project->wasRecentlyCreated) {
+            $shouldRegenerate = true;
+            Log::info('New project created, generating embeddings', [
+                'project_id' => $project->id
+            ]);
+        }
+        // For updates, check if relevant fields changed
+        elseif ($project->wasChanged($embeddingFields)) {
+            $shouldRegenerate = true;
+            $changedFields = array_keys($project->getChanges());
+            Log::info('Project updated, regenerating embeddings', [
+                'project_id' => $project->id,
+                'changed_fields' => $changedFields
+            ]);
+        }
+
+        // Generate embeddings in background queue
+        if ($shouldRegenerate) {
+            GenerateProjectEmbeddings::dispatch($project)
+                ->onQueue('embeddings')
+                ->delay(now()->addSeconds(2));
+        }
     }
 
     /**
-     * Handle the project "updated" event.
+     * Handle the Project "deleted" event.
      */
-    public function updated(project $project): void
+    public function deleted(Project $project): void
     {
-        //
+        Log::info('Project deleted', [
+            'project_id' => $project->id,
+            'had_embeddings' => !is_null($project->embeddings_generated_at)
+        ]);
     }
 
     /**
-     * Handle the project "deleted" event.
+     * Handle the Project "restored" event.
      */
-    public function deleted(project $project): void
+    public function restored(Project $project): void
     {
-        //
-    }
+        Log::info('Project restored, regenerating embeddings', [
+            'project_id' => $project->id
+        ]);
 
-    /**
-     * Handle the project "restored" event.
-     */
-    public function restored(project $project): void
-    {
-        //
-    }
-
-    /**
-     * Handle the project "force deleted" event.
-     */
-    public function forceDeleted(project $project): void
-    {
-        //
+        GenerateProjectEmbeddings::dispatch($project)
+            ->onQueue('embeddings');
     }
 }
