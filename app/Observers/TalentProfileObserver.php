@@ -2,81 +2,84 @@
 
 namespace App\Observers;
 
-use App\Models\TalentProfile;
-use App\Jobs\GenerateTalentProfileEmbeddings;
+use App\Models\Project;
+use App\Jobs\GenerateProjectEmbeddings;
 use Illuminate\Support\Facades\Log;
 
-class TalentProfileObserver
+class ProjectObserver
 {
     /**
-     * Handle the TalentProfile "saved" event.
-     * Fires after both create and update operations.
+     * Handle the Project "saved" event.
      */
-    public function saved(TalentProfile $profile): void
+    public function saved(Project $project): void
     {
         // Check if embedding-relevant fields changed
         $embeddingFields = [
-            'professional_title',
-            'summary',
+            'title',
+            'description',
+            'requirements',
+            'responsibilities',
+            'deliverables',
+            'project_type',
+            'work_type',
             'experience_level',
-            'hourly_rate_min',
-            'hourly_rate_max',
-            'currency',
-            'preferred_locations',
-            'work_preferences',
-            'availability_types',
-            'languages',
+            'location',
+            'skills_required',
+            'budget_min',
+            'budget_max',
+            'budget_currency',
+            'budget_type',
+            'duration',
         ];
 
         $shouldRegenerate = false;
 
-        // For new records, always generate embeddings
-        if ($profile->wasRecentlyCreated) {
+        // For new projects, always generate embeddings
+        if ($project->wasRecentlyCreated) {
             $shouldRegenerate = true;
-            Log::info('New talent profile created, generating embeddings', [
-                'profile_id' => $profile->id
+            Log::info('New project created, generating embeddings', [
+                'project_id' => $project->id
             ]);
         }
         // For updates, check if relevant fields changed
-        elseif ($profile->wasChanged($embeddingFields)) {
+        elseif ($project->wasChanged($embeddingFields)) {
             $shouldRegenerate = true;
-            $changedFields = array_keys($profile->getChanges());
-            Log::info('Talent profile updated, regenerating embeddings', [
-                'profile_id' => $profile->id,
+            $changedFields = array_keys($project->getChanges());
+            Log::info('Project updated, regenerating embeddings', [
+                'project_id' => $project->id,
                 'changed_fields' => $changedFields
             ]);
         }
 
         // Generate embeddings in background queue
         if ($shouldRegenerate) {
-            GenerateTalentProfileEmbeddings::dispatch($profile)
+            GenerateProjectEmbeddings::dispatch($project)
                 ->onQueue('embeddings')
-                ->delay(now()->addSeconds(2)); // Small delay to ensure transaction committed
+                ->delay(now()->addSeconds(2));
         }
     }
 
     /**
-     * Handle the TalentProfile "deleted" event.
+     * Handle the Project "deleted" event.
      */
-    public function deleted(TalentProfile $profile): void
+    public function deleted(Project $project): void
     {
-        Log::info('Talent profile deleted', [
-            'profile_id' => $profile->id,
-            'had_embeddings' => !is_null($profile->embeddings_generated_at)
+        Log::info('Project deleted', [
+            'project_id' => $project->id,
+            'had_embeddings' => !is_null($project->embeddings_generated_at)
         ]);
     }
 
     /**
-     * Handle the TalentProfile "restored" event.
+     * Handle the Project "restored" event.
      */
-    public function restored(TalentProfile $profile): void
+    public function restored(Project $project): void
     {
-        // Regenerate embeddings when profile is restored from soft delete
-        Log::info('Talent profile restored, regenerating embeddings', [
-            'profile_id' => $profile->id
+        Log::info('Project restored, regenerating embeddings', [
+            'project_id' => $project->id
         ]);
 
-        GenerateTalentProfileEmbeddings::dispatch($profile)
+        GenerateProjectEmbeddings::dispatch($project)
             ->onQueue('embeddings');
     }
 }
