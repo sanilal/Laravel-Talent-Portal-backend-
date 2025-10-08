@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\MediaController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PublicController;
+use App\Http\Controllers\Api\SearchController; // NEW: Search API Controller
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -43,6 +44,33 @@ Route::prefix('v1')->group(function () {
             'version' => '1.0.0',
             'timestamp' => now()->toIso8601String()
         ]);
+    });
+
+    // Embedding service test
+    Route::get('/test-embeddings', function () {
+        try {
+            $service = app(\App\Services\EmbeddingService::class);
+            
+            $testText = "Senior Full Stack Developer with expertise in Laravel, PostgreSQL, React, and Next.js";
+            
+            $embedding = $service->generateEmbedding($testText);
+            
+            return response()->json([
+                'success' => true,
+                'test_text' => $testText,
+                'embedding_dimensions' => count($embedding),
+                'first_5_values' => array_slice($embedding, 0, 5),
+                'service_url' => config('services.embeddings.url'),
+                'message' => 'Embedding service is working correctly!'
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ], 500);
+        }
     });
 
     // ============================================
@@ -285,6 +313,75 @@ Route::prefix('v1')->group(function () {
             Route::delete('/{id}', [MediaController::class, 'delete'])->name('delete');
         });
 
+        // ============================================
+        // SEARCH & MATCHING API ROUTES (NEW)
+        // ============================================
+        
+        Route::prefix('search')->name('search.')->group(function () {
+            
+            /**
+             * Semantic Talent Search
+             * POST /api/v1/search/talents
+             * 
+             * Search for talents using natural language queries with AI-powered semantic matching
+             * Body: { "query": "React developer with 5 years", "limit": 20, "min_similarity": 0.7 }
+             */
+            Route::post('/talents', [SearchController::class, 'searchTalents'])->name('talents');
+        });
+
+        /**
+         * Project-to-Talent Matching
+         * POST /api/v1/projects/{project}/match-talents
+         * 
+         * Find best matching talents for a specific project using multi-factor AI scoring
+         * Requires: Project owner or admin
+         * Body: { "limit": 20, "min_similarity": 0.65, "filters": {...} }
+         */
+        Route::post('/projects/{project}/match-talents', [SearchController::class, 'matchTalentsToProject'])
+            ->name('projects.match-talents');
+        
+        /**
+         * Talent-to-Project Matching
+         * POST /api/v1/talents/{talent}/match-projects
+         * 
+         * Find suitable projects for a talent based on their profile and skills
+         * Requires: Talent owner or admin
+         * Body: { "limit": 20, "min_similarity": 0.65, "filters": {...} }
+         */
+        Route::post('/talents/{talent}/match-projects', [SearchController::class, 'matchProjectsToTalent'])
+            ->name('talents.match-projects');
+        
+        /**
+         * Similar Portfolios
+         * GET /api/v1/portfolios/{portfolio}/similar
+         * 
+         * Find portfolios similar to a given portfolio based on content similarity
+         * Query params: ?limit=10&min_similarity=0.6
+         */
+        Route::get('/portfolios/{portfolio}/similar', [SearchController::class, 'similarPortfolios'])
+            ->name('portfolios.similar');
+        
+        /**
+         * Related Skills
+         * GET /api/v1/skills/{skill}/related
+         * 
+         * Find skills related to a given skill with automatic clustering
+         * Query params: ?limit=15&min_similarity=0.7
+         */
+        Route::get('/skills/{skill}/related', [SearchController::class, 'relatedSkills'])
+            ->name('skills.related');
+        
+        /**
+         * Smart Recommendations
+         * GET /api/v1/talents/{talent}/recommendations
+         * 
+         * Generate personalized project recommendations for a talent
+         * Requires: Talent owner or admin
+         * Query params: ?limit=10
+         */
+        Route::get('/talents/{talent}/recommendations', [SearchController::class, 'recommendations'])
+            ->name('talents.recommendations');
+
     }); // End of protected routes
 
     // ============================================
@@ -330,49 +427,6 @@ Route::prefix('v1')->group(function () {
         })->name('reports');
     });
 
-    // Test embedded service endpoint
-
-     Route::get('/test', function () {
-        return response()->json(['status' => 'ok']);
-    });
-
-    Route::get('/health', function () {
-        return response()->json([
-            'status' => 'ok',
-            'version' => '1.0.0',
-            'timestamp' => now()->toIso8601String()
-        ]);
-    });
-
-    // Embedding service test
-    Route::get('/test-embeddings', function () {
-        try {
-            $service = app(\App\Services\EmbeddingService::class);
-            
-            $testText = "Senior Full Stack Developer with expertise in Laravel, PostgreSQL, React, and Next.js";
-            
-            $embedding = $service->generateEmbedding($testText);
-            
-            return response()->json([
-                'success' => true,
-                'test_text' => $testText,
-                'embedding_dimensions' => count($embedding),
-                'first_5_values' => array_slice($embedding, 0, 5),
-                'service_url' => config('services.embeddings.url'),
-                'message' => 'Embedding service is working correctly!'
-            ]);
-            
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ], 500);
-        }
-    });
-
-    // Test embedded service endpoint ends here
-
 }); // End of v1 prefix
 
 // ============================================
@@ -386,7 +440,3 @@ Route::fallback(function () {
         'available_endpoints' => '/api/v1/health'
     ], 404);
 });
-
-// Temporary embedding test endpoint
-
-   
