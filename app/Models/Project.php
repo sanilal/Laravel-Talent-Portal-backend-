@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class Project extends Model
 {
@@ -16,25 +17,27 @@ class Project extends Model
      */
     protected $fillable = [
         'recruiter_profile_id',
-        'category_id',
+        'posted_by',
+        'primary_category_id', // FIXED: Was 'category_id'
         'title',
         'slug',
         'description',
         'requirements',
+        'responsibilities',
+        'deliverables',
         'project_type',
+        'work_type',
         'budget_type',
         'budget_min',
         'budget_max',
-        'currency',
+        'budget_currency',
         'duration',
         'start_date',
         'end_date',
         'deadline',
-        'location_type',
         'location',
-        'remote_allowed',
-        'travel_required',
         'experience_level',
+        'skills_required',
         'positions_available',
         'positions_filled',
         'status',
@@ -54,6 +57,10 @@ class Project extends Model
         'approved_by',
         'rejection_reason',
         'metadata',
+        'requirements_embedding',
+        'required_skills_embedding',
+        'embeddings_generated_at',
+        'embedding_model',
     ];
 
     /**
@@ -65,14 +72,16 @@ class Project extends Model
         'deadline' => 'datetime',
         'application_deadline' => 'datetime',
         'approved_at' => 'datetime',
-        'remote_allowed' => 'boolean',
-        'travel_required' => 'boolean',
         'is_featured' => 'boolean',
         'is_urgent' => 'boolean',
         'budget_min' => 'decimal:2',
         'budget_max' => 'decimal:2',
         'tags' => 'array',
         'requirements' => 'array',
+        'responsibilities' => 'array',
+        'deliverables' => 'array',
+        'skills_required' => 'array',
+        'location' => 'array',
         'contact_info' => 'array',
         'metadata' => 'array',
         'views_count' => 'integer',
@@ -83,6 +92,48 @@ class Project extends Model
         'required_skills_embedding' => 'array',
         'embeddings_generated_at' => 'datetime',
     ];
+
+    /**
+     * Bootstrap the model.
+     */
+    protected static function boot()
+    {
+        parent::boot();
+        
+        // Auto-generate slug when creating a project
+        static::creating(function ($project) {
+            if (empty($project->slug)) {
+                $project->slug = Str::slug($project->title);
+                
+                // Ensure slug is unique
+                $originalSlug = $project->slug;
+                $counter = 1;
+                
+                while (static::where('slug', $project->slug)->exists()) {
+                    $project->slug = $originalSlug . '-' . $counter;
+                    $counter++;
+                }
+            }
+        });
+        
+        // Auto-update slug when title changes
+        static::updating(function ($project) {
+            if ($project->isDirty('title') && empty($project->slug)) {
+                $project->slug = Str::slug($project->title);
+                
+                // Ensure slug is unique
+                $originalSlug = $project->slug;
+                $counter = 1;
+                
+                while (static::where('slug', $project->slug)
+                            ->where('id', '!=', $project->id)
+                            ->exists()) {
+                    $project->slug = $originalSlug . '-' . $counter;
+                    $counter++;
+                }
+            }
+        });
+    }
 
     /**
      * Project type constants
@@ -120,11 +171,11 @@ class Project extends Model
      * Status constants
      */
     const STATUS_DRAFT = 'draft';
-    const STATUS_OPEN = 'open';
+    const STATUS_OPEN = 'published';
     const STATUS_IN_PROGRESS = 'in_progress';
     const STATUS_COMPLETED = 'completed';
     const STATUS_CANCELLED = 'cancelled';
-    const STATUS_PAUSED = 'paused';
+    const STATUS_PAUSED = 'expired';
 
     const STATUSES = [
         self::STATUS_DRAFT,
@@ -133,19 +184,6 @@ class Project extends Model
         self::STATUS_COMPLETED,
         self::STATUS_CANCELLED,
         self::STATUS_PAUSED,
-    ];
-
-    /**
-     * Location type constants
-     */
-    const LOCATION_ON_SITE = 'on_site';
-    const LOCATION_REMOTE = 'remote';
-    const LOCATION_HYBRID = 'hybrid';
-
-    const LOCATION_TYPES = [
-        self::LOCATION_ON_SITE,
-        self::LOCATION_REMOTE,
-        self::LOCATION_HYBRID,
     ];
 
     /**
@@ -217,7 +255,7 @@ class Project extends Model
      */
     public function category()
     {
-        return $this->belongsTo(Category::class);
+        return $this->belongsTo(Category::class, 'primary_category_id'); // FIXED: Added foreign key
     }
 
     /**
@@ -306,7 +344,7 @@ class Project extends Model
             return 'Negotiable';
         }
 
-        $currency = $this->currency ?? 'USD';
+        $currency = $this->budget_currency ?? 'USD';
         $symbol = $this->getCurrencySymbol($currency);
 
         if ($this->budget_min && $this->budget_max) {
@@ -441,7 +479,7 @@ class Project extends Model
      */
     public function scopeByCategory($query, $categoryId)
     {
-        return $query->where('category_id', $categoryId);
+        return $query->where('primary_category_id', $categoryId); // FIXED: Was 'category_id'
     }
 
     /**
@@ -457,23 +495,6 @@ class Project extends Model
                      ->where('budget_max', '>=', $max);
               });
         });
-    }
-
-    /**
-     * Scope for remote projects.
-     */
-    public function scopeRemote($query)
-    {
-        return $query->where('remote_allowed', true)
-                     ->orWhere('location_type', self::LOCATION_REMOTE);
-    }
-
-    /**
-     * Scope for projects by location.
-     */
-    public function scopeByLocation($query, string $location)
-    {
-        return $query->where('location', 'like', "%{$location}%");
     }
 
     /**

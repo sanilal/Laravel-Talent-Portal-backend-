@@ -334,32 +334,23 @@ class EmbeddingService
      */
     private function buildProjectSkillsText(Project $project): string
     {
-        $skillsParts = [];
-
-        // Check if skills_required JSON field exists
+        // Only use the skills_required JSON field
         if ($project->skills_required && is_array($project->skills_required)) {
-            $skillsParts[] = "Required Skills from JSON: " . implode(', ', $project->skills_required);
-        }
-
-        // Also check project_skills relationship if it exists
-        if (method_exists($project, 'skills')) {
-            $relationshipSkills = $project->skills()
-                ->get()
+            $skillsList = collect($project->skills_required)
                 ->map(function($skill) {
-                    $level = $skill->pivot->level_required ?? 'any';
-                    $required = $skill->pivot->is_required ? 'required' : 'preferred';
-                    return "{$skill->name} ({$level} level, {$required})";
+                    if (is_array($skill)) {
+                        $name = $skill['name'] ?? 'Unknown';
+                        $level = $skill['level'] ?? 'any';
+                        return "{$name} ({$level} level)";
+                    }
+                    return is_string($skill) ? $skill : 'Unknown skill';
                 })
                 ->join(', ');
             
-            if ($relationshipSkills) {
-                $skillsParts[] = "Skills: {$relationshipSkills}";
-            }
+            return $skillsList ? "Required Skills: {$skillsList}" : 'No specific skills required';
         }
 
-        return !empty($skillsParts) 
-            ? implode('. ', $skillsParts) 
-            : 'No specific skills required';
+        return 'No specific skills required';
     }
 
     /**
