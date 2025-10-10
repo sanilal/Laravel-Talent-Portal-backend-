@@ -28,6 +28,16 @@ use Illuminate\Support\Facades\Route;
 | Base URL: /api/v1/*
 */
 
+// Handle OPTIONS preflight for all API routes
+Route::options('{any}', function () {
+    return response('', 200)
+        ->header('Access-Control-Allow-Origin', 'http://localhost:3000')
+        ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+        ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept')
+        ->header('Access-Control-Allow-Credentials', 'true')
+        ->header('Access-Control-Max-Age', '86400');
+})->where('any', '.*');
+
 Route::prefix('v1')->group(function () {
 
     // ============================================
