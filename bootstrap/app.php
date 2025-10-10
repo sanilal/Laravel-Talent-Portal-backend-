@@ -29,7 +29,8 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->group('api', [
-            \Illuminate\Http\Middleware\HandleCors::class,  // ← ADD THIS
+            \App\Http\Middleware\HandleOptionsRequests::class,
+            \Illuminate\Http\Middleware\HandleCors::class,  
            //  \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
             'throttle:api',
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
