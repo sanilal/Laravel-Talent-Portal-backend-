@@ -11,10 +11,6 @@ return Application::configure(basePath: dirname(__DIR__))
         api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
-        // then: function () {
-        //     Route::middleware('web')
-        //         ->group(base_path('routes/auth.php'));
-        // }
     )
     ->withMiddleware(function (Middleware $middleware) {
         // Global middleware
@@ -33,7 +29,8 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->group('api', [
-            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+            \Illuminate\Http\Middleware\HandleCors::class,  // ← ADD THIS
+           //  \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
             'throttle:api',
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
             \App\Http\Middleware\ApiRateLimitMiddleware::class,
