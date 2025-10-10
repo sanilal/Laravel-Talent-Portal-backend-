@@ -25,12 +25,12 @@ class AuthController extends Controller
                 ->mixedCase()
                 ->numbers()
                 ->symbols()],
-            'role' => 'required|in:talent,recruiter',
+            'user_type' => 'required|in:talent,recruiter',
             'phone' => 'nullable|string|max:20',
 
             // Conditional validation based on role
-            'company_name' => 'required_if:role,recruiter|string|max:255',
-            'category_id' => 'required_if:role,talent|uuid|exists:categories,id',
+            'company_name' => 'required_if:user_type,recruiter|string|max:255',
+            'category_id' => 'required_if:user_type,talent|uuid|exists:categories,id',
         ]);
 
         if ($validator->fails()) {
@@ -49,20 +49,20 @@ class AuthController extends Controller
                 'last_name' => $request->last_name,
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
-                'user_type' => $request->role, // Changed from 'role' to 'user_type'
+                'user_type' => $request->user_type, 
                 'phone' => $request->phone,
                 'account_status' => 'pending_verification',
             ]);
 
             // Create role-specific profile
-            if ($request->role === 'talent') {
+            if ($request->user_type === 'talent') {
                 $user->talentProfile()->create([
                     'primary_category_id' => $request->category_id,
                     'is_available' => true,
                     'is_public' => false, // Private until profile is completed
                     'profile_completion_percentage' => 10, // Basic info completed
                 ]);
-            } elseif ($request->role === 'recruiter') {
+            } elseif ($request->user_type  === 'recruiter') {
                 $user->recruiterProfile()->create([
                     'company_name' => $request->company_name,
                     'is_verified' => false,
@@ -85,10 +85,10 @@ class AuthController extends Controller
             // Mail::to($user->email)->send(new VerificationEmail($verificationCode));
 
             // Create auth token
-            $token = $user->createToken('auth-token', [$request->role])->plainTextToken;
+            $token = $user->createToken('auth-token', [$request->user_type])->plainTextToken;
 
             // Load profile relationship
-            $profileRelation = $request->role . 'Profile';
+            $profileRelation = $request->user_type . 'Profile';
             $user->load($profileRelation);
 
             return response()->json([
