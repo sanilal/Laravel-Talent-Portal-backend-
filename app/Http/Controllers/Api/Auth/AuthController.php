@@ -176,6 +176,7 @@ class AuthController extends Controller
             'user' => $user,
             'token' => $token,
             'token_type' => 'Bearer',
+            'requires_verification' => $user->account_status === 'pending_verification',
         ]);
     }
 
