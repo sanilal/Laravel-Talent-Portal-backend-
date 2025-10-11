@@ -28,7 +28,7 @@ class PublicController extends Controller
             ->get();
 
         return response()->json([
-            'categories' => $categories
+            'data' => $categories
         ]);
     }
 

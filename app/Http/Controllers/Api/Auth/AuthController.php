@@ -30,7 +30,9 @@ class AuthController extends Controller
 
             // Conditional validation based on role
             'company_name' => 'required_if:user_type,recruiter|string|max:255',
-            'category_id' => 'required_if:user_type,talent|uuid|exists:categories,id',
+            // 'category_id' => 'required_if:user_type,talent|uuid|exists:categories,id',
+            'category_id' => 'required_if:user_type,talent|exists:categories,id',
+
         ]);
 
         if ($validator->fails()) {

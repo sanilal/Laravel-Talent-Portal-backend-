@@ -533,6 +533,11 @@ bash test-search-api.sh
 php artisan serve
 php artisan queue:work --queue=embeddings
 
+cd embedding-service
+source venv/Scripts/activate
+python app.py 
+
+
 # Debug
 php artisan tinker
 tail -f storage/logs/laravel.log
