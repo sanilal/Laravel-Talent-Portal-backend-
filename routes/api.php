@@ -118,6 +118,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/refresh-token', [AuthController::class, 'refreshToken'])->name('refresh');
             Route::put('/update-profile', [AuthController::class, 'updateProfile'])->name('update-profile');
             Route::post('/change-password', [AuthController::class, 'changePassword'])->name('change-password');
+            Route::post('/auth/resend-verification', [AuthController::class, 'resendVerification']);
 
             // Session management
             Route::get('/sessions', [AuthController::class, 'sessions'])->name('sessions');

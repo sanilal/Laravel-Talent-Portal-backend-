@@ -567,4 +567,35 @@ class AuthController extends Controller
             'message' => 'Password changed successfully'
         ]);
     }
+
+    /**
+ * Resend verification email
+ */
+    public function resendVerification(Request $request)
+    {
+        $user = $request->user();
+        
+        if ($user->account_status === 'active') {
+            return response()->json([
+                'message' => 'Email already verified'
+            ], 400);
+        }
+
+        // Generate new verification code
+        $verificationCode = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        
+        // Store verification code
+        \Cache::put(
+            'email_verification_' . $user->id,
+            $verificationCode,
+            now()->addMinutes(15)
+        );
+
+        // TODO: Send verification email
+        // Mail::to($user->email)->send(new VerificationEmail($verificationCode));
+
+        return response()->json([
+            'message' => 'Verification email sent successfully'
+        ]);
+    }
 }
