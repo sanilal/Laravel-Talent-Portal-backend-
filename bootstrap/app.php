@@ -3,7 +3,8 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use Illuminate\Support\Facades\Route; 
+use Illuminate\Support\Facades\Route;
+use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -30,8 +31,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->group('api', [
             \App\Http\Middleware\HandleOptionsRequests::class,
-            \Illuminate\Http\Middleware\HandleCors::class,  
-           //  \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+            \Illuminate\Http\Middleware\HandleCors::class,
+            // ✅ UNCOMMENTED - This is CRITICAL for Sanctum token authentication
+            EnsureFrontendRequestsAreStateful::class,
             'throttle:api',
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
             \App\Http\Middleware\ApiRateLimitMiddleware::class,

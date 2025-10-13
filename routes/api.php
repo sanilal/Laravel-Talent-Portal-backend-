@@ -162,7 +162,7 @@ Route::prefix('v1')->group(function () {
     // PROTECTED ROUTES (Require Authentication)
     // ============================================
 
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware(['auth:sanctum'])->group(function () {
 
         // ============================================
         // TALENT ROUTES (Talent Role Required)
