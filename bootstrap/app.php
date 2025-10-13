@@ -64,15 +64,21 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        // Custom exception handling for authentication
+        // ✅ FIX: Handle authentication exceptions for API routes
+        // This prevents the "Route [login] not defined" error
         $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, $request) {
-            if ($request->expectsJson() || $request->is('api/*')) {
+            // Always return JSON for API routes
+            if ($request->is('api/*') || $request->expectsJson()) {
                 return response()->json([
                     'message' => 'Unauthenticated.',
                 ], 401);
             }
 
-            return redirect()->guest(route('login'));
+            // ✅ FIX: For non-API routes, return JSON instead of redirecting
+            // This prevents errors when 'login' route doesn't exist
+            return response()->json([
+                'message' => 'Unauthenticated.',
+            ], 401);
         });
 
         $exceptions->render(function (\Illuminate\Auth\Access\AuthorizationException $e, $request) {
@@ -82,7 +88,9 @@ return Application::configure(basePath: dirname(__DIR__))
                 ], 403);
             }
 
-            abort(403, $e->getMessage());
+            return response()->json([
+                'message' => 'This action is unauthorized.',
+            ], 403);
         });
 
         $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException $e, $request) {
@@ -93,7 +101,10 @@ return Application::configure(basePath: dirname(__DIR__))
                 ], 429);
             }
 
-            return response()->view('errors.429', [], 429);
+            return response()->json([
+                'message' => 'Too many requests.',
+                'retry_after' => $e->getHeaders()['Retry-After'] ?? null,
+            ], 429);
         });
     })
     ->create();
