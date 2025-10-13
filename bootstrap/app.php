@@ -32,8 +32,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->group('api', [
             \App\Http\Middleware\HandleOptionsRequests::class,
             \Illuminate\Http\Middleware\HandleCors::class,
-            // ✅ UNCOMMENTED - This is CRITICAL for Sanctum token authentication
-            EnsureFrontendRequestsAreStateful::class,
+            // ✅ REMOVED for token-based auth - only needed for cookie-based SPAs
+            // Token-based auth doesn't need CSRF protection or stateful sessions
+            // EnsureFrontendRequestsAreStateful::class,
             'throttle:api',
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
             \App\Http\Middleware\ApiRateLimitMiddleware::class,
