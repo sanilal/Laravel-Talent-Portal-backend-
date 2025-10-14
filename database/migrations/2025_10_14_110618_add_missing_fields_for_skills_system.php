@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -140,10 +141,27 @@ return new class extends Migration
             });
         }
 
-        // Check experiences table
+        // Check experiences table - FIXED FOR UUID
         if (!Schema::hasColumn('experiences', 'user_id')) {
+            // Step 1: Add column as nullable UUID
             Schema::table('experiences', function (Blueprint $table) {
-                $table->foreignId('user_id')->after('id')->constrained('users')->onDelete('cascade');
+                $table->uuid('user_id')->nullable()->after('id');
+            });
+
+            // Step 2: Populate existing records
+            $firstUserId = DB::table('users')->first()?->id;
+            if ($firstUserId) {
+                DB::table('experiences')
+                    ->whereNull('user_id')
+                    ->update(['user_id' => $firstUserId]);
+            }
+            // Option B: Delete orphaned records (uncomment if you prefer)
+            // DB::table('experiences')->whereNull('user_id')->delete();
+
+            // Step 3: Make it NOT NULL and add foreign key
+            Schema::table('experiences', function (Blueprint $table) {
+                $table->uuid('user_id')->nullable(false)->change();
+                $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
             });
         }
 
@@ -153,10 +171,27 @@ return new class extends Migration
             });
         }
 
-        // Check education table  
+        // Check education table - FIXED FOR UUID
         if (!Schema::hasColumn('education', 'user_id')) {
+            // Step 1: Add column as nullable UUID
             Schema::table('education', function (Blueprint $table) {
-                $table->foreignId('user_id')->after('id')->constrained('users')->onDelete('cascade');
+                $table->uuid('user_id')->nullable()->after('id');
+            });
+
+            // Step 2: Populate existing records
+            $firstUserId = DB::table('users')->first()?->id;
+            if ($firstUserId) {
+                DB::table('education')
+                    ->whereNull('user_id')
+                    ->update(['user_id' => $firstUserId]);
+            }
+            // Option B: Delete orphaned records (uncomment if you prefer)
+            // DB::table('education')->whereNull('user_id')->delete();
+
+            // Step 3: Make it NOT NULL and add foreign key
+            Schema::table('education', function (Blueprint $table) {
+                $table->uuid('user_id')->nullable(false)->change();
+                $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
             });
         }
 
@@ -216,12 +251,20 @@ return new class extends Migration
         });
 
         Schema::table('experiences', function (Blueprint $table) {
+            if (Schema::hasColumn('experiences', 'user_id')) {
+                $table->dropForeign(['user_id']);
+                $table->dropColumn('user_id');
+            }
             if (Schema::hasColumn('experiences', 'is_current')) {
                 $table->dropColumn('is_current');
             }
         });
 
         Schema::table('education', function (Blueprint $table) {
+            if (Schema::hasColumn('education', 'user_id')) {
+                $table->dropForeign(['user_id']);
+                $table->dropColumn('user_id');
+            }
             if (Schema::hasColumn('education', 'is_current')) {
                 $table->dropColumn('is_current');
             }
