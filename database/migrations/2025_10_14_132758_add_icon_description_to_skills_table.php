@@ -11,7 +11,6 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Add missing fields to skills table
         Schema::table('skills', function (Blueprint $table) {
             if (!Schema::hasColumn('skills', 'icon')) {
                 $table->string('icon')->nullable()->after('name');
@@ -26,7 +25,8 @@ return new class extends Migration
             }
         });
 
-        $this->command->info('✅ Added icon, description, and talents_count to skills table');
+        // Remove this line - it causes the error
+        // $this->command->info('✅ Added icon, description, and talents_count to skills table');
     }
 
     /**
