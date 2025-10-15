@@ -175,12 +175,16 @@ Route::prefix('v1')->group(function () {
             Route::put('/profile', [TalentProfileController::class, 'update'])->name('profile.update');
             Route::post('/profile/avatar', [TalentProfileController::class, 'uploadAvatar'])->name('profile.avatar');
             Route::get('/dashboard', [TalentProfileController::class, 'dashboard'])->name('dashboard');
-
             // Skills management
-            Route::get('/skills', [TalentSkillsController::class, 'index'])->name('skills.index');
-            Route::post('/skills', [TalentSkillsController::class, 'store'])->name('skills.store');
-            Route::put('/skills/{id}', [TalentSkillsController::class, 'update'])->name('skills.update');
-            Route::delete('/skills/{id}', [TalentSkillsController::class, 'destroy'])->name('skills.destroy');
+            Route::prefix('skills')->name('skills.')->group(function () {
+                Route::get('/', [TalentSkillsController::class, 'index'])->name('index');
+                Route::post('/', [TalentSkillsController::class, 'store'])->name('store');
+                Route::get('/{id}', [TalentSkillsController::class, 'show'])->name('show');
+                Route::put('/{id}', [TalentSkillsController::class, 'update'])->name('update');
+                Route::delete('/{id}', [TalentSkillsController::class, 'destroy'])->name('destroy');
+                Route::post('/reorder', [TalentSkillsController::class, 'reorder'])->name('reorder');
+                Route::post('/{id}/set-primary', [TalentSkillsController::class, 'setPrimary'])->name('set-primary');
+            });
 
             // Experience management
             Route::get('/experiences', [ExperiencesController::class, 'index'])->name('experiences.index');
