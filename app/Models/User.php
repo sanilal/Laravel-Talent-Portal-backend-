@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -25,26 +27,33 @@ class User extends Authenticatable
         'phone',
         'date_of_birth',
         'gender',
-        'location',
-        'timezone',
-        'profile_picture',
         'bio',
+        'location',
+        'city',
+        'state',
+        'country',
+        'timezone',
         'website',
         'social_links',
-        'email_verified_at',
-        'phone_verified_at',
-        'two_factor_secret',
-        'two_factor_recovery_codes',
-        'two_factor_confirmed_at',
+        'avatar',
+        'cover_image',
+        'professional_title',
+        'hourly_rate',
+        'currency',
+        'experience_level',
+        'availability_status',
         'account_status',
+        'is_verified',
+        'is_email_verified',
+        'email_verified_at',
         'last_login_at',
         'last_login_ip',
         'last_activity_at',
-        'login_attempts',
-        'locked_until',
         'preferences',
         'privacy_settings',
-        'two_factor_enabled',
+        'profile_views',
+        'profile_completion',
+        'languages',
     ];
 
     /**
@@ -53,8 +62,6 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
-        'two_factor_secret',
-        'two_factor_recovery_codes',
     ];
 
     /**
@@ -62,17 +69,19 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
-        'phone_verified_at' => 'datetime',
-        'two_factor_confirmed_at' => 'datetime',
         'date_of_birth' => 'date',
         'last_login_at' => 'datetime',
         'last_activity_at' => 'datetime',
-        'locked_until' => 'datetime',
         'social_links' => 'array',
         'preferences' => 'array',
         'privacy_settings' => 'array',
+        'languages' => 'array',
         'password' => 'hashed',
-        'two_factor_enabled' => 'boolean',
+        'is_verified' => 'boolean',
+        'is_email_verified' => 'boolean',
+        'hourly_rate' => 'decimal:2',
+        'profile_views' => 'integer',
+        'profile_completion' => 'integer',
     ];
 
     /**
@@ -97,11 +106,34 @@ class User extends Authenticatable
     const STATUS_BANNED = 'banned';
 
     /**
+     * Availability status constants
+     */
+    const AVAILABILITY_AVAILABLE = 'available';
+    const AVAILABILITY_BUSY = 'busy';
+    const AVAILABILITY_NOT_AVAILABLE = 'not_available';
+
+    /**
+     * Experience level constants
+     */
+    const EXPERIENCE_ENTRY = 'entry';
+    const EXPERIENCE_INTERMEDIATE = 'intermediate';
+    const EXPERIENCE_EXPERT = 'expert';
+
+    /**
      * Get the user's full name.
      */
     public function getFullNameAttribute(): string
     {
         return "{$this->first_name} {$this->last_name}";
+    }
+
+    /**
+     * Get the user's full location.
+     */
+    public function getFullLocationAttribute(): ?string
+    {
+        $parts = array_filter([$this->city, $this->state, $this->country]);
+        return !empty($parts) ? implode(', ', $parts) : null;
     }
 
     /**
@@ -137,12 +169,75 @@ class User extends Authenticatable
     }
 
     /**
-     * Check if user account is locked.
+     * Check if user is available for work.
      */
-    public function isLocked(): bool
+    public function isAvailable(): bool
     {
-        return $this->locked_until && $this->locked_until->isFuture();
+        return $this->availability_status === self::AVAILABILITY_AVAILABLE;
     }
+
+    // ==================== SKILLS RELATIONSHIPS ====================
+
+    /**
+     * Get all skills with their detailed information.
+     * This includes the pivot data (description, images, videos, etc.)
+     */
+    public function skills(): BelongsToMany
+    {
+        return $this->belongsToMany(Skill::class, 'talent_skills', 'talent_id', 'skill_id')
+                    ->using(TalentSkill::class)
+                    ->withPivot([
+                        'id',
+                        'description',
+                        'proficiency_level',
+                        'years_of_experience',
+                        'image_path',
+                        'video_url',
+                        'is_primary',
+                        'display_order',
+                        'show_on_profile',
+                    ])
+                    ->withTimestamps()
+                    ->orderByPivot('display_order', 'asc')
+                    ->orderByPivot('is_primary', 'desc');
+    }
+
+    /**
+     * Get all talent skill records (direct access to pivot table).
+     */
+    public function talentSkills(): HasMany
+    {
+        return $this->hasMany(TalentSkill::class, 'talent_id');
+    }
+
+    /**
+     * Get only visible skills for public display.
+     */
+    public function visibleSkills(): BelongsToMany
+    {
+        return $this->skills()->wherePivot('show_on_profile', true);
+    }
+
+    /**
+     * Get the primary skill.
+     */
+    public function primarySkill()
+    {
+        return $this->talentSkills()
+                    ->where('is_primary', true)
+                    ->with('skill')
+                    ->first();
+    }
+
+    /**
+     * Get skills by proficiency level.
+     */
+    public function skillsByProficiency(string $level): BelongsToMany
+    {
+        return $this->skills()->wherePivot('proficiency_level', $level);
+    }
+
+    // ==================== OTHER RELATIONSHIPS ====================
 
     /**
      * Get the talent profile for this user.
@@ -161,71 +256,27 @@ class User extends Authenticatable
     }
 
     /**
-     * Get all talent skills through talent profile.
-     */
-    public function skills()
-    {
-        return $this->hasManyThrough(
-            TalentSkill::class,
-            TalentProfile::class,
-            'user_id',           // Foreign key on talent_profiles table
-            'talent_profile_id', // Foreign key on talent_skills table
-            'id',                // Local key on users table
-            'id'                 // Local key on talent_profiles table
-        );
-    }
-
-    /**
-     * Alias for skills relationship
-     */
-    public function talentSkills()
-    {
-        return $this->skills();
-    }
-
-    /**
-     * Get all experiences through talent profile.
+     * Get all experiences.
      */
     public function experiences()
     {
-        return $this->hasManyThrough(
-            Experience::class,
-            TalentProfile::class,
-            'user_id',           // Foreign key on talent_profiles table
-            'talent_profile_id', // Foreign key on experiences table
-            'id',                // Local key on users table
-            'id'                 // Local key on talent_profiles table
-        );
+        return $this->hasMany(Experience::class, 'user_id');
     }
 
     /**
-     * Get all education records through talent profile.
+     * Get all education records.
      */
     public function education()
     {
-        return $this->hasManyThrough(
-            Education::class,
-            TalentProfile::class,
-            'user_id',           // Foreign key on talent_profiles table
-            'talent_profile_id', // Foreign key on education table
-            'id',                // Local key on users table
-            'id'                 // Local key on talent_profiles table
-        );
+        return $this->hasMany(Education::class, 'user_id');
     }
 
     /**
-     * Get all portfolios through talent profile.
+     * Get all portfolios.
      */
     public function portfolios()
     {
-        return $this->hasManyThrough(
-            Portfolio::class,
-            TalentProfile::class,
-            'user_id',           // Foreign key on talent_profiles table
-            'talent_profile_id', // Foreign key on portfolios table
-            'id',                // Local key on users table
-            'id'                 // Local key on talent_profiles table
-        );
+        return $this->hasMany(Portfolio::class, 'user_id');
     }
 
     /**
@@ -284,21 +335,7 @@ class User extends Authenticatable
         return $this->hasMany(Review::class, 'reviewee_id');
     }
 
-    /**
-     * Get all login attempts for this user.
-     */
-    public function loginAttempts()
-    {
-        return $this->hasMany(LoginAttempt::class, 'email', 'email');
-    }
-
-    /**
-     * Get all email verification attempts for this user.
-     */
-    public function emailVerificationAttempts()
-    {
-        return $this->hasMany(EmailVerificationAttempt::class, 'email', 'email');
-    }
+    // ==================== QUERY SCOPES ====================
 
     /**
      * Scope for active users.
@@ -321,6 +358,30 @@ class User extends Authenticatable
      */
     public function scopeVerified($query)
     {
-        return $query->whereNotNull('email_verified_at');
+        return $query->where('is_email_verified', true);
+    }
+
+    /**
+     * Scope for available talents.
+     */
+    public function scopeAvailable($query)
+    {
+        return $query->where('availability_status', self::AVAILABILITY_AVAILABLE);
+    }
+
+    /**
+     * Scope for talents by experience level.
+     */
+    public function scopeByExperience($query, string $level)
+    {
+        return $query->where('experience_level', $level);
+    }
+
+    /**
+     * Increment profile views.
+     */
+    public function incrementProfileViews(): void
+    {
+        $this->increment('profile_views');
     }
 }
