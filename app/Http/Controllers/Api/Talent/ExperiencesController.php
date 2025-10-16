@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Talent;
 
 use App\Http\Controllers\Controller;
+use App\Models\Experience;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -19,9 +20,7 @@ class ExperiencesController extends Controller
             ->orderByDesc('start_date')
             ->get();
 
-        return response()->json([
-            'experiences' => $experiences,
-        ]);
+        return response()->json($experiences);
     }
 
     /**
@@ -31,22 +30,15 @@ class ExperiencesController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'title' => 'required|string|max:255',
-            'company_name' => 'nullable|string|max:255',
-            'project_name' => 'nullable|string|max:255',
-            'category_id' => 'nullable|uuid|exists:categories,id',
-            'employment_type' => 'nullable|string|max:255',
+            'company' => 'required|string|max:255',
             'location' => 'nullable|string|max:255',
             'start_date' => 'required|date',
             'end_date' => 'nullable|date|after:start_date',
             'is_current' => 'boolean',
             'description' => 'nullable|string',
-            'skills_used' => 'nullable|array',
+            'employment_type' => 'nullable|string|in:full_time,part_time,contract,freelance,internship',
+            'skills' => 'nullable|array',
             'achievements' => 'nullable|array',
-            'company_website' => 'nullable|url|max:255',
-            'compensation' => 'nullable|numeric|min:0',
-            'compensation_type' => 'nullable|string|max:255',
-            'media_attachments' => 'nullable|array',
-            'is_featured' => 'boolean',
         ]);
 
         if ($validator->fails()) {
@@ -56,25 +48,26 @@ class ExperiencesController extends Controller
             ], 422);
         }
 
-        // Get the user's talent profile ID
-        $talentProfileId = $request->user()->talentProfile->id;
-
-        // If is_current is true, end_date should be null
+        // Get talent_profile_id if exists
         $data = $request->only([
-            'title', 'company_name', 'project_name', 'category_id', 'employment_type',
-            'location', 'start_date', 'end_date', 'is_current', 'description',
-            'skills_used', 'achievements', 'company_website', 'compensation',
-            'compensation_type', 'media_attachments', 'is_featured'
+            'title', 'company', 'location', 'start_date', 'end_date',
+            'is_current', 'description', 'employment_type', 'skills', 'achievements'
         ]);
 
+        // If current position, clear end date
         if ($request->is_current) {
             $data['end_date'] = null;
         }
 
-        // Add talent_profile_id
-        $data['talent_profile_id'] = $talentProfileId;
+        // Add talent_profile_id if user has talent profile
+        if ($request->user()->talentProfile) {
+            $data['talent_profile_id'] = $request->user()->talentProfile->id;
+        }
 
-        $experience = $request->user()->experiences()->create($data);
+        // Add user_id for direct relationship
+        $data['user_id'] = $request->user()->id;
+
+        $experience = Experience::create($data);
 
         return response()->json([
             'message' => 'Experience added successfully',
@@ -110,22 +103,15 @@ class ExperiencesController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'title' => 'sometimes|string|max:255',
-            'company_name' => 'nullable|string|max:255',
-            'project_name' => 'nullable|string|max:255',
-            'category_id' => 'nullable|uuid|exists:categories,id',
-            'employment_type' => 'nullable|string|max:255',
+            'company' => 'sometimes|string|max:255',
             'location' => 'nullable|string|max:255',
             'start_date' => 'sometimes|date',
             'end_date' => 'nullable|date|after:start_date',
             'is_current' => 'boolean',
             'description' => 'nullable|string',
-            'skills_used' => 'nullable|array',
+            'employment_type' => 'nullable|string|in:full_time,part_time,contract,freelance,internship',
+            'skills' => 'nullable|array',
             'achievements' => 'nullable|array',
-            'company_website' => 'nullable|url|max:255',
-            'compensation' => 'nullable|numeric|min:0',
-            'compensation_type' => 'nullable|string|max:255',
-            'media_attachments' => 'nullable|array',
-            'is_featured' => 'boolean',
         ]);
 
         if ($validator->fails()) {
@@ -146,14 +132,12 @@ class ExperiencesController extends Controller
             ], 404);
         }
 
-        // If is_current is true, end_date should be null
         $data = $request->only([
-            'title', 'company_name', 'project_name', 'category_id', 'employment_type',
-            'location', 'start_date', 'end_date', 'is_current', 'description',
-            'skills_used', 'achievements', 'company_website', 'compensation',
-            'compensation_type', 'media_attachments', 'is_featured'
+            'title', 'company', 'location', 'start_date', 'end_date',
+            'is_current', 'description', 'employment_type', 'skills', 'achievements'
         ]);
 
+        // If current position, clear end date
         if ($request->has('is_current') && $request->is_current) {
             $data['end_date'] = null;
         }
