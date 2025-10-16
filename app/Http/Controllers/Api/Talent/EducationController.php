@@ -19,9 +19,13 @@ class EducationController extends Controller
             ->orderByDesc('start_date')
             ->get();
 
-        return response()->json([
-            'education' => $education,
-        ]);
+        // Map fields for frontend compatibility
+        $education = $education->map(function($item) {
+            $item->institution = $item->institution_name; // Add alias
+            return $item;
+        });
+
+        return response()->json($education);
     }
 
     /**
@@ -29,7 +33,12 @@ class EducationController extends Controller
      */
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
+        // Accept both 'institution' and 'institution_name' for compatibility
+        $institutionName = $request->institution ?? $request->institution_name;
+
+        $validator = Validator::make(array_merge($request->all(), [
+            'institution_name' => $institutionName
+        ]), [
             'institution_name' => 'required|string|max:255',
             'degree' => 'required|string|max:255',
             'field_of_study' => 'nullable|string|max:255',
@@ -54,21 +63,26 @@ class EducationController extends Controller
         // Get the user's talent profile ID
         $talentProfileId = $request->user()->talentProfile->id;
 
-        // If is_current is true, end_date should be null
-        $data = $request->only([
-            'institution_name', 'degree', 'field_of_study', 'start_date', 'end_date',
-            'is_current', 'grade', 'description', 'activities', 'certifications',
-            'institution_website', 'attachments'
-        ]);
-
-        if ($request->is_current) {
-            $data['end_date'] = null;
-        }
-
-        // Add talent_profile_id
-        $data['talent_profile_id'] = $talentProfileId;
+        $data = [
+            'institution_name' => $institutionName,
+            'degree' => $request->degree,
+            'field_of_study' => $request->field_of_study,
+            'start_date' => $request->start_date,
+            'end_date' => $request->is_current ? null : $request->end_date,
+            'is_current' => $request->is_current ?? false,
+            'grade' => $request->grade,
+            'description' => $request->description,
+            'activities' => $request->activities,
+            'certifications' => $request->certifications,
+            'institution_website' => $request->institution_website,
+            'attachments' => $request->attachments,
+            'talent_profile_id' => $talentProfileId,
+        ];
 
         $education = $request->user()->education()->create($data);
+
+        // Add alias for frontend
+        $education->institution = $education->institution_name;
 
         return response()->json([
             'message' => 'Education added successfully',
@@ -92,6 +106,9 @@ class EducationController extends Controller
             ], 404);
         }
 
+        // Add alias
+        $education->institution = $education->institution_name;
+
         return response()->json([
             'education' => $education,
         ]);
@@ -102,7 +119,12 @@ class EducationController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $validator = Validator::make($request->all(), [
+        // Accept both 'institution' and 'institution_name'
+        $institutionName = $request->institution ?? $request->institution_name;
+
+        $validator = Validator::make(array_merge($request->all(), [
+            'institution_name' => $institutionName
+        ]), [
             'institution_name' => 'sometimes|string|max:255',
             'degree' => 'sometimes|string|max:255',
             'field_of_study' => 'nullable|string|max:255',
@@ -135,22 +157,34 @@ class EducationController extends Controller
             ], 404);
         }
 
-        // If is_current is true, end_date should be null
-        $data = $request->only([
-            'institution_name', 'degree', 'field_of_study', 'start_date', 'end_date',
-            'is_current', 'grade', 'description', 'activities', 'certifications',
-            'institution_website', 'attachments'
-        ]);
-
-        if ($request->has('is_current') && $request->is_current) {
-            $data['end_date'] = null;
+        $data = [];
+        if ($institutionName) $data['institution_name'] = $institutionName;
+        if ($request->has('degree')) $data['degree'] = $request->degree;
+        if ($request->has('field_of_study')) $data['field_of_study'] = $request->field_of_study;
+        if ($request->has('start_date')) $data['start_date'] = $request->start_date;
+        if ($request->has('end_date')) $data['end_date'] = $request->end_date;
+        if ($request->has('is_current')) {
+            $data['is_current'] = $request->is_current;
+            if ($request->is_current) {
+                $data['end_date'] = null;
+            }
         }
+        if ($request->has('grade')) $data['grade'] = $request->grade;
+        if ($request->has('description')) $data['description'] = $request->description;
+        if ($request->has('activities')) $data['activities'] = $request->activities;
+        if ($request->has('certifications')) $data['certifications'] = $request->certifications;
+        if ($request->has('institution_website')) $data['institution_website'] = $request->institution_website;
+        if ($request->has('attachments')) $data['attachments'] = $request->attachments;
 
         $education->update($data);
 
+        // Add alias
+        $education = $education->fresh();
+        $education->institution = $education->institution_name;
+
         return response()->json([
             'message' => 'Education updated successfully',
-            'education' => $education->fresh(),
+            'education' => $education,
         ]);
     }
 
