@@ -54,6 +54,17 @@ class User extends Authenticatable
         'profile_views',
         'profile_completion',
         'languages',
+         'linkedin_url',
+        'twitter_url',
+        'instagram_url',
+        'height',
+        'weight',
+        'chest',
+        'waist',
+        'hips',
+        'shoe_size',
+        'hair_color',
+        'eye_color',
     ];
 
     /**
