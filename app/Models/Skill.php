@@ -51,7 +51,7 @@ class Skill extends Model
      */
     public function talents(): BelongsToMany
     {
-        return $this->belongsToMany(User::class, 'talent_skills', 'skill_id', 'talent_id')
+        return $this->belongsToMany(User::class, 'talent_skills', 'skill_id', 'talent_profile_id')
                     ->using(TalentSkill::class)
                     ->withPivot([
                         'description',
