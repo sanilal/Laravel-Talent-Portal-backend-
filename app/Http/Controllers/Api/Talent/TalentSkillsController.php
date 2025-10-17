@@ -57,7 +57,7 @@ class TalentSkillsController extends Controller
         $validator = Validator::make($request->all(), [
             'skill_id' => 'required|uuid|exists:skills,id',
             'description' => 'nullable|string|max:5000',
-            'proficiency_level' => 'required|in:beginner,intermediate,advanced,expert',
+            'proficiency_level' => 'required|integer|between:1,4',
             'years_of_experience' => 'nullable|integer|min:0|max:100',
             'certifications' => 'nullable|array',
             'certifications.*' => 'string|max:255',
