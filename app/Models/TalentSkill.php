@@ -21,31 +21,33 @@ class TalentSkill extends Model
         'is_verified',
         'image_path',
         'video_url',
+        'display_order',
+        'show_on_profile',
     ];
 
     protected $casts = [
-        'proficiency_level' => 'integer', // 1-5 scale based on your original
+        'proficiency_level' => 'integer', // 1-4 scale (Beginner, Intermediate, Advanced, Expert)
         'years_of_experience' => 'integer',
         'is_primary' => 'boolean',
         'is_verified' => 'boolean',
+        'display_order' => 'integer',
+        'show_on_profile' => 'boolean',
         'certifications' => 'array', // JSON field
     ];
 
     protected $appends = ['image_url', 'level_display', 'proficiency_badge'];
 
-    // Constants for proficiency levels
+    // Constants for proficiency levels (Updated to match controller validation: 1-4)
     const LEVEL_BEGINNER = 1;
     const LEVEL_INTERMEDIATE = 2;
     const LEVEL_ADVANCED = 3;
     const LEVEL_EXPERT = 4;
-    const LEVEL_MASTER = 5;
 
     const LEVELS = [
         self::LEVEL_BEGINNER => 'Beginner',
         self::LEVEL_INTERMEDIATE => 'Intermediate',
         self::LEVEL_ADVANCED => 'Advanced',
         self::LEVEL_EXPERT => 'Expert',
-        self::LEVEL_MASTER => 'Master',
     ];
 
     // Relationships
@@ -71,8 +73,8 @@ class TalentSkill extends Model
             return $this->image_path;
         }
 
-        // Otherwise, generate storage URL
-        return Storage::url($this->image_path);
+        // FIXED: Specify 'public' disk explicitly
+        return Storage::disk('public')->url($this->image_path);
     }
 
     public function getLevelDisplayAttribute(): string
@@ -87,7 +89,6 @@ class TalentSkill extends Model
             self::LEVEL_INTERMEDIATE => 'green',
             self::LEVEL_ADVANCED => 'yellow',
             self::LEVEL_EXPERT => 'orange',
-            self::LEVEL_MASTER => 'purple',
             default => 'gray',
         };
     }
@@ -108,5 +109,10 @@ class TalentSkill extends Model
         return $query->orderBy('is_primary', 'desc')
                      ->orderBy('proficiency_level', 'desc')
                      ->orderBy('years_of_experience', 'desc');
+    }
+
+    public function scopeVisible($query)
+    {
+        return $query->where('show_on_profile', true);
     }
 }

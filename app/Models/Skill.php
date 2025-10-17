@@ -48,6 +48,7 @@ class Skill extends Model
 
     /**
      * Get all talents that have this skill.
+     * FIXED: Now uses talent_profile_id instead of talent_id
      */
     public function talents(): BelongsToMany
     {
@@ -57,9 +58,11 @@ class Skill extends Model
                         'description',
                         'proficiency_level',
                         'years_of_experience',
+                        'certifications',
                         'image_path',
                         'video_url',
                         'is_primary',
+                        'is_verified',
                         'display_order',
                         'show_on_profile',
                     ])
@@ -100,10 +103,14 @@ class Skill extends Model
 
     /**
      * Update the cached talents count.
+     * FIXED: Now counts unique talent_profile_id
      */
     public function updateTalentsCount(): void
     {
-        $this->talents_count = $this->talents()->count();
+        // Count unique talent profiles that have this skill
+        $this->talents_count = $this->talentSkills()
+            ->distinct('talent_profile_id')
+            ->count('talent_profile_id');
         $this->save();
     }
 
