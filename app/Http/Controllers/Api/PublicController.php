@@ -155,9 +155,10 @@ class PublicController extends Controller
      */
     public function talents(Request $request): JsonResponse
     {
+        // FIXED: Changed talentProfile.talentSkills to talentProfile.skills
         $query = User::with([
                 'talentProfile.category',
-                'talentSkills' => function ($query) {
+                'talentProfile.skills' => function ($query) {
                     $query->where('show_on_profile', true)
                           ->orderBy('display_order', 'asc')
                           ->orderBy('is_primary', 'desc')
@@ -193,13 +194,14 @@ class PublicController extends Controller
             });
         }
 
+        // FIXED: Changed whereHas('talentSkills') to whereHas('talentProfile.skills')
         // Filter by skills (multiple skills)
         if ($request->has('skills')) {
             $skills = is_array($request->skills) 
                 ? $request->skills 
                 : explode(',', $request->skills);
                 
-            $query->whereHas('talentSkills', function ($q) use ($skills) {
+            $query->whereHas('talentProfile.skills', function ($q) use ($skills) {
                 $q->whereIn('skill_id', $skills);
             });
         }
@@ -247,9 +249,10 @@ class PublicController extends Controller
             });
         }
 
+        // FIXED: Changed whereHas('talentSkills') to whereHas('talentProfile.skills')
         // Filter by primary skill
         if ($request->has('primary_skill')) {
-            $query->whereHas('talentSkills', function ($q) use ($request) {
+            $query->whereHas('talentProfile.skills', function ($q) use ($request) {
                 $q->where('skill_id', $request->primary_skill)
                   ->where('is_primary', true);
             });
@@ -304,14 +307,16 @@ class PublicController extends Controller
     {
         $talent = User::with([
                 'talentProfile.category',
-                'talentSkills' => function ($query) {
+                'talentProfile.skills' => function ($query) {
                     $query->where('show_on_profile', true)
-                          ->orderBy('display_order', 'asc')
-                          ->orderBy('is_primary', 'desc')
-                          ->with('skill.category');
+                        ->orderBy('display_order', 'asc')
+                        ->orderBy('is_primary', 'desc')
+                        ->with('skill.category');
                 },
-                'portfolios' => function ($query) {
-                    $query->orderBy('display_order', 'asc');
+                'talentProfile.portfolios' => function ($query) {  
+                    $query->where('is_public', true)              
+                        ->orderBy('order', 'asc')               
+                        ->with('media');                       
                 },
                 'experiences' => function ($query) {
                     $query->orderBy('start_date', 'desc');
@@ -321,9 +326,9 @@ class PublicController extends Controller
                 },
                 'receivedReviews' => function ($query) {
                     $query->where('is_approved', true)
-                          ->with('reviewer:id,first_name,last_name,avatar')
-                          ->latest()
-                          ->limit(10);
+                        ->with('reviewer:id,first_name,last_name,avatar')
+                        ->latest()
+                        ->limit(10);
                 }
             ])
             ->where('user_type', 'talent')
@@ -333,15 +338,14 @@ class PublicController extends Controller
             })
             ->find($id);
 
-        if (!$talent) {
+        if (!$talent || !$talent->talentProfile) {  
             return response()->json([
                 'success' => false,
                 'message' => 'Talent not found or not available.',
             ], 404);
         }
 
-        // Increment profile views (both places for consistency)
-        $talent->increment('profile_views');
+        // Increment profile views
         if ($talent->talentProfile) {
             $talent->talentProfile->increment('profile_views');
         }
@@ -385,6 +389,7 @@ class PublicController extends Controller
             ], 400);
         }
 
+        // FIXED: Changed 'talentSkills' to 'talentProfile.skills'
         // Search talents
         $talents = User::where('user_type', 'talent')
             ->where('account_status', 'active')
@@ -404,7 +409,7 @@ class PublicController extends Controller
             })
             ->with([
                 'talentProfile:id,user_id,professional_title,average_rating,hourly_rate_min,hourly_rate_max,currency',
-                'talentSkills' => function ($q) {
+                'talentProfile.skills' => function ($q) {
                     $q->where('show_on_profile', true)
                       ->where('is_primary', true)
                       ->with('skill:id,name,slug,icon')
