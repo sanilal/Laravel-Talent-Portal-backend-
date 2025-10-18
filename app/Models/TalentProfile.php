@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class TalentProfile extends Model
@@ -91,9 +92,33 @@ class TalentProfile extends Model
     /**
      * Get all skills for this talent profile
      */
-    public function skills()
+    public function skills(): HasMany
     {
         return $this->hasMany(TalentSkill::class, 'talent_profile_id');
+    }
+
+    /**
+     * Get all portfolios for this talent profile
+     */
+    public function portfolios(): HasMany
+    {
+        return $this->hasMany(Portfolio::class, 'talent_profile_id');
+    }
+
+    /**
+     * Get all experiences for this talent profile through user
+     */
+    public function experiences(): HasMany
+    {
+        return $this->hasMany(Experience::class, 'talent_profile_id');
+    }
+
+    /**
+     * Get all education records for this talent profile through user
+     */
+    public function education(): HasMany
+    {
+        return $this->hasMany(Education::class, 'talent_profile_id');
     }
 
     /**
@@ -137,10 +162,10 @@ class TalentProfile extends Model
         }
 
         // Check for related data
-        if ($this->user->talentSkills()->count() > 0) $completed++;
-        if ($this->user->experiences()->count() > 0) $completed++;
-        if ($this->user->education()->count() > 0) $completed++;
-        if ($this->user->portfolios()->count() > 0) $completed++;
+        if ($this->skills()->count() > 0) $completed++;
+        if ($this->experiences()->count() > 0) $completed++;
+        if ($this->education()->count() > 0) $completed++;
+        if ($this->portfolios()->count() > 0) $completed++;
 
         $total = count($fields) + 4; // 4 additional relation checks
         $percentage = round(($completed / $total) * 100);
