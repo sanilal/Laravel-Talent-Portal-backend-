@@ -173,6 +173,7 @@ Route::prefix('v1')->group(function () {
             // Profile management
             Route::get('/profile', [TalentProfileController::class, 'show'])->name('profile');
             Route::put('/profile', [TalentProfileController::class, 'update'])->name('profile.update');
+            Route::post('/profile', [TalentProfileController::class, 'update'])->name('profile.update.post'); // ← ADD THIS
             Route::post('/profile/avatar', [TalentProfileController::class, 'uploadAvatar'])->name('profile.avatar');
             Route::get('/dashboard', [TalentProfileController::class, 'dashboard'])->name('dashboard');
             // Skills management

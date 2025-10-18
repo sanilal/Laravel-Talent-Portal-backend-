@@ -324,12 +324,12 @@ class PublicController extends Controller
                 'education' => function ($query) {
                     $query->orderBy('start_date', 'desc');
                 },
-                'receivedReviews' => function ($query) {
-                    $query->where('is_approved', true)
-                        ->with('reviewer:id,first_name,last_name,avatar')
-                        ->latest()
-                        ->limit(10);
-                }
+                // 'receivedReviews' => function ($query) {
+                //     $query->where('is_approved', true)
+                //         ->with('reviewer:id,first_name,last_name,avatar')
+                //         ->latest()
+                //         ->limit(10);
+                // }
             ])
             ->where('user_type', 'talent')
             ->where('account_status', 'active')

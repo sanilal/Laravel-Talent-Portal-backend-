@@ -67,10 +67,10 @@ class Portfolio extends Model
         return $this->belongsTo(Category::class);
     }
 
+    // Use morphMany with correct relationship name
     public function media()
     {
-        return $this->hasMany(Media::class, 'mediable_id')
-                    ->where('mediable_type', self::class);
+        return $this->morphMany(\App\Models\Media::class, 'model');
     }
 
     public function scopeFeatured($query)

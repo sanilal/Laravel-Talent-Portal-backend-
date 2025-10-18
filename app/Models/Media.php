@@ -5,35 +5,44 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
+
 
 class Media extends Model
 {
-    use HasFactory, HasUuids, SoftDeletes;
+    use HasFactory, HasUuids;
+    // REMOVED: SoftDeletes
 
     protected $fillable = [
-        'user_id',
-        'mediable_type',
-        'mediable_id',
+        'model_type',        
+        'model_id',          
+        'uuid',
+        'collection_name',
+        'name',
         'file_name',
-        'file_path',
-        'file_url',
-        'file_size',
         'mime_type',
-        'file_type',
-        'collection',
-        'title',
-        'description',
+        'disk',
+        'conversions_disk',
+        'size',
+        'manipulations',
+        'custom_properties',
+        'generated_conversions',
+        'responsive_images',
+        'order_column',
         'alt_text',
+        'caption',
         'metadata',
         'is_public',
-        'sort_order',
     ];
 
     protected $casts = [
+        'manipulations' => 'array',
+        'custom_properties' => 'array',
+        'generated_conversions' => 'array',
+        'responsive_images' => 'array',
         'metadata' => 'array',
         'is_public' => 'boolean',
-        'file_size' => 'integer',
+        'size' => 'integer',
+        'order_column' => 'integer',
     ];
 
     const TYPE_IMAGE = 'image';
@@ -41,23 +50,32 @@ class Media extends Model
     const TYPE_AUDIO = 'audio';
     const TYPE_DOCUMENT = 'document';
 
-    public function user()
-    {
-        return $this->belongsTo(User::class);
-    }
-
-    public function mediable()
+    public function model()
     {
         return $this->morphTo();
     }
 
+    // Keep for backwards compatibility if needed
+    public function mediable()
+    {
+        return $this->model();
+    }
+
     public function scopeImages($query)
     {
-        return $query->where('file_type', self::TYPE_IMAGE);
+        return $query->where('mime_type', 'like', 'image/%');
     }
 
     public function scopeVideos($query)
     {
-        return $query->where('file_type', self::TYPE_VIDEO);
+        return $query->where('mime_type', 'like', 'video/%');
+    }
+
+    public function getFullUrlAttribute()
+    {
+        if ($this->disk === 'public') {
+            return url('storage/' . $this->file_name);
+        }
+        return $this->file_name;
     }
 }
