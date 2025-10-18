@@ -193,48 +193,46 @@ class User extends Authenticatable
      * Get all skills with their detailed information.
      * This includes the pivot data (description, images, videos, etc.)
      */
-    public function skills(): BelongsToMany
-    {
-        return $this->belongsToMany(Skill::class, 'talent_skills', 'talent_id', 'skill_id')
-                    ->using(TalentSkill::class)
-                    ->withPivot([
-                        'id',
-                        'description',
-                        'proficiency_level',
-                        'years_of_experience',
-                        'image_path',
-                        'video_url',
-                        'is_primary',
-                        'display_order',
-                        'show_on_profile',
-                    ])
-                    ->withTimestamps()
-                    ->orderByPivot('display_order', 'asc')
-                    ->orderByPivot('is_primary', 'desc');
-    }
+    public function skills()
+        {
+            return $this->hasManyThrough(
+                TalentSkill::class,
+                TalentProfile::class,
+                'user_id',           // Foreign key on talent_profiles table
+                'talent_profile_id', // Foreign key on talent_skills table
+                'id',                // Local key on users table
+                'id'                 // Local key on talent_profiles table
+            )->with('skill');
+        }
 
     /**
-     * Get all talent skill records (direct access to pivot table).
-     */
+ * Get all talent skill records (direct access through profile).
+ */
     public function talentSkills(): HasMany
     {
-        return $this->hasMany(TalentSkill::class, 'talent_id');
+        // This won't work directly, use skills() instead
+        return $this->hasManyThrough(
+            TalentSkill::class,
+            TalentProfile::class,
+            'user_id',
+            'talent_profile_id'
+        );
     }
 
-    /**
-     * Get only visible skills for public display.
-     */
-    public function visibleSkills(): BelongsToMany
-    {
-        return $this->skills()->wherePivot('show_on_profile', true);
-    }
+            /**
+         * Get only visible skills for public display.
+         */
+        public function visibleSkills()
+        {
+            return $this->skills()->where('show_on_profile', true);
+        }
 
     /**
      * Get the primary skill.
      */
     public function primarySkill()
     {
-        return $this->talentSkills()
+        return $this->skills()
                     ->where('is_primary', true)
                     ->with('skill')
                     ->first();
@@ -243,9 +241,9 @@ class User extends Authenticatable
     /**
      * Get skills by proficiency level.
      */
-    public function skillsByProficiency(string $level): BelongsToMany
+    public function skillsByProficiency(string $level)
     {
-        return $this->skills()->wherePivot('proficiency_level', $level);
+        return $this->skills()->where('proficiency_level', $level);
     }
 
     // ==================== OTHER RELATIONSHIPS ====================
@@ -287,7 +285,14 @@ class User extends Authenticatable
      */
     public function portfolios()
     {
-        return $this->hasMany(Portfolio::class, 'user_id');
+        return $this->hasManyThrough(
+            Portfolio::class,
+            TalentProfile::class,
+            'user_id',           // FK on talent_profiles table
+            'talent_profile_id', // FK on portfolios table
+            'id',                // Local key on users table
+            'id'                 // Local key on talent_profiles table
+        );
     }
 
     /**

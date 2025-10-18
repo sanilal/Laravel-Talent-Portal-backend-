@@ -278,7 +278,10 @@ class TalentProfileController extends Controller
         if ($user->hourly_rate) $completion += 5;
 
         // Skills (15%)
-        $skillsCount = $user->skills()->count();
+        $skillsCount = 0;
+        if ($user->talentProfile) {
+            $skillsCount = $user->talentProfile->skills()->count();
+        }
         if ($skillsCount >= 1) $completion += 5;
         if ($skillsCount >= 3) $completion += 5;
         if ($skillsCount >= 5) $completion += 5;
@@ -298,9 +301,9 @@ class TalentProfileController extends Controller
         $user->profile_completion = $percentage;
         $user->save();
 
-        if ($user->talentProfile) {
-            $user->talentProfile->update(['profile_completion_percentage' => $percentage]);
-        }
+         if ($user->talentProfile) {
+                $user->talentProfile->update(['profile_completion_percentage' => $percentage]);
+            }
 
         return $percentage;
     }
