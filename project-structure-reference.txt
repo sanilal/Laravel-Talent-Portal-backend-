@@ -1,0 +1,304 @@
+ls
+-                composer.json       id                         PostgreSQL,           request.json                 test_search.json
+1,               composer.lock       IMPLEMENTATION_SUMMARY.md  primary_category_id   resources/                   test-auth.sh*      
+active,          config/             intermediate]              project_type          routes/                      test-output.txt    
+app/             database/           intermediate],             public/               search.json                  tests/
+artisan*         description         Laravel,                   QUICK_REFERENCE.md    SEARCH_API_DOCUMENTATION.md  test-search-api.sh*
+bootstrap/       diagnose.sh*        login.json                 quick-test.sh*        SEARCH_API_INSTALLATION.md   title
+budget_currency  duration            match_result.json          React,                search_result.json           vendor/
+budget_max       embedding-service/  package.json               README.md             status                       vite.config.js     
+budget_min       experience_level    phpunit.xml                recommendations.json  storage/                     work_type
+budget_type      expert],            posted_by                  recruiter_profile_id  test_api.sh*
+
+
+
+
+$ ls app
+Helpers/  Http/  Jobs/  Models/  Observers/  Providers/  Services/
+
+ls app/Helpers
+SimilarityHelper.php
+
+
+ ls app/Http
+Controllers/  Middleware/
+
+ ls app/Jobs
+GeneratePortfolioEmbedding.php  GenerateProjectEmbeddings.php  GenerateSkillEmbedding.php  GenerateTalentProfileEmbeddings.php
+
+
+ls app/Models
+Application.php  EmailVerificationAttempt.php  Media.php         Portfolio.php         Review.php         TalentSkill.php
+Category.php     Experience.php                Message.php       Project.php           Skill.php          User.php
+Education.php    LoginAttempt.php              Notification.php  RecruiterProfile.php  TalentProfile.php
+
+ ls app/Observers
+PortfolioObserver.php  ProjectObserver.php  SkillObserver.php  TalentProfileObserver.php
+
+
+ls app/Providers
+AppServiceProvider.php  TelescopeServiceProvider.php
+
+ls app/Services
+AuthenticationService.php  EmbeddingService.php  SearchService.php
+
+ls app/Http/Controllers
+Api/  AuthenticationController.php  Controller.php
+
+ ls app/Http/Controllers/Api
+ApplicationController.php  MediaController.php    NotificationController.php  PublicController.php     ReviewController.php  Talent/
+Auth/                      MessageController.php  ProjectController.php       RecruiterController.php  SearchController.php
+
+
+
+ ls app/Http/Controllers/Api/Talent
+EducationController.php  ExperiencesController.php  PortfolioController.php  TalentProfileController.php  TalentSkillsController.php
+
+ls app/Http/Controllers/Api/Auth
+AuthController.php  EmailVerificationController.php  PasswordResetController.php  TwoFactorController.php
+
+ls app/Http/Middleware
+ApiAuthMiddleware.php       CheckAccountStatus.php  EnsureEmailIsVerified.php  RoleMiddleware.php             TwoFactorMiddleware.php
+ApiRateLimitMiddleware.php  EncryptCookies.php      HandleOptionsRequests.php  SecurityHeadersMiddleware.php  VerifyCsrfToken.php
+
+
+ls storage
+app/  debugbar/  framework/  logs/
+
+ls storage/app
+private/  public/
+
+ls storage/app/private
+
+ ls storage/app/public
+skills/
+
+ ls storage/app/public/skills
+BhtGwWJqiXfkEHaDabCrjh3DfmPS8lfE2rwughCU.jpg  ujXRjkMCceEPd5DBAgXthbj9ujeRQsY1fgWhyYKD.jpg
+hJdVIezxAEuKrBSow2yWC4hNT3r1R1hht1LgVgqs.jpg  V79QjeaanhJKiFnlaXGpSRTKKsuPsTYwmrEGwnM4.webp
+ikrx3vTjv5vcr23aE4lo4L9Io3owgeJCSchWWgpb.jpg  vpuL3gjYoxETf0c1U9kjjgN92s1HB27ID2nlXIHc.jpg
+KxiHcqldjuF2ICb6lKHaajjW08h5dEJaFbJdmUAA.jpg  ywXDXZWvbeWgdNrmTi7ea5a9dNoptsvL7TDDj6uA.jpg
+SH7VKeieV6dqMHfbOPPNNtfxfaKUGChat4KdzHUB.jpg
+
+
+ls resources
+css/  js/  views/
+
+ ls resources/css
+app.css
+
+ls resources/js
+app.js  bootstrap.js
+
+ls resources/views
+welcome.blade.php
+
+
+ls routes
+api.php  auth.php  channels.php  console.php  web.php
+
+ ls tests
+Feature/  TestCase.php  Unit/
+
+ ls tests/Feature
+ExampleTest.php  SearchTest.php  SimilarityHelperTest.php
+
+ ls tests/Unit
+ExampleTest.php
+
+ ls bootstrap
+app.php  cache/  providers.php
+
+ls config
+app.php   cache.php  database.php     logging.php  permission.php  sanctum.php   session.php
+auth.php  cors.php   filesystems.php  mail.php     queue.php       services.php  telescope.php
+
+ ls database
+database.sqlite  factories/  migrations/  seeders/
+
+ls database/factories
+UserFactory.php
+
+ls database/migrations
+0001_01_01_000000_create_users_table.php                        2025_09_26_104105_create_notifications_table.php
+0001_01_01_000001_create_cache_table.php                        2025_09_30_114626_create_personal_access_tokens_table.php
+0001_01_01_000002_create_jobs_table.php                         2025_10_01_045729_create_telescope_entries_table.php
+2025_09_26_082526_create_email_verification_attempts_table.php  2025_10_01_122028_create_casting_calls.php
+2025_09_26_082600_create_login_attempts_table.php               2025_10_01_131301_add_remaining_fields_to_applications_table.php        
+2025_09_26_082641_create_categories_table.php                   2025_10_02_065701_add_last_activity_at_to_users_table.php
+2025_09_26_082711_create_skills_table.php                       2025_10_02_082348_add_visibility_to_projects_table.php
+2025_09_26_082752_create_talent_profiles_table.php              2025_10_02_083358_add_soft_deletes_to_skills_table.php
+2025_09_26_082827_create_recruiter_profiles_table.php           2025_10_02_125647_add_user_agent_to_email_verification_attempts.php     
+2025_09_26_102846_create_projects_table.php                     2025_10_03_115505_fix_notifications_table_structure.php
+2025_09_26_103208_create_applications_table.php                 2025_10_03_124414_fix_reviews_table_structure.php
+2025_09_26_103236_create_media_table.php                        2025_10_07_000000_add_embedding_json_columns.php
+2025_09_26_103309_create_talent_skills_table.php                2025_10_09_064034_update_projects_status_enum.php
+2025_09_26_103338_create_experiences_table.php                  2025_10_14_110618_add_missing_fields_for_skills_system.php
+2025_09_26_103801_create_education_table.php                    2025_10_14_132758_add_icon_description_to_skills_table.php
+2025_09_26_103923_create_portfolios_table.php                   2025_10_15_071412_add_display_and_visibility_to_talent_skills.php       
+2025_09_26_104005_create_messages_table.php                     2025_10_16_124249_add_model_fields_to_users_table.php
+2025_09_26_104040_create_reviews_table.php                      2025_10_17_073317_fix_proficiency_level_column_type.php
+
+ls database/factories
+UserFactory.php
+
+ ls embedding-service
+'=2.2.0'  '=2.7.0'   app.py   requirements.txt   start.sh*   venv/
+
+ ls embedding-service/venv
+Include/  Lib/  pyvenv.cfg  Scripts/  share/
+
+ls embedding-service/venv/Include
+
+ ls embedding-service/venv/Lib
+site-packages/
+
+ ls embedding-service/venv/Scripts
+activate        f2py.exe*             isympy.exe*        pip.exe*      pythonw.exe*       tqdm.exe*
+activate.bat    flask.exe*            nltk.exe*          pip3.12.exe*  tiny-agents.exe*   transformers.exe*
+Activate.ps1    hf.exe*               normalizer.exe*    pip3.exe*     torchfrtrace.exe*  transformers-cli.exe*
+deactivate.bat  huggingface-cli.exe*  numpy-config.exe*  python.exe*   torchrun.exe*
+
+ ls embedding-service/venv/share
+man/
+
+ ls embedding-service/venv/share/man
+man1/
+
+ ls embedding-service/venv/share/man/man1
+isympy.1
+
+
+ php artisan route:list
+
+  GET|HEAD  / .......................................................................................................................  
+  GET|HEAD  _debugbar/assets/javascript ................................. debugbar.assets.js › Barryvdh\Debugbar › AssetController@js  
+  GET|HEAD  _debugbar/assets/stylesheets .............................. debugbar.assets.css › Barryvdh\Debugbar › AssetController@css  
+  DELETE    _debugbar/cache/{key}/{tags?} ........................ debugbar.cache.delete › Barryvdh\Debugbar › CacheController@delete  
+  GET|HEAD  _debugbar/clockwork/{id} ....................... debugbar.clockwork › Barryvdh\Debugbar › OpenHandlerController@clockwork  
+  GET|HEAD  _debugbar/open .................................. debugbar.openhandler › Barryvdh\Debugbar › OpenHandlerController@handle  
+  POST      _debugbar/queries/explain ...................... debugbar.queries.explain › Barryvdh\Debugbar › QueriesController@explain  
+  GET|HEAD  _debugbar/telescope/{id} .............................. debugbar.telescope › Barryvdh\Debugbar › TelescopeController@show  
+  GET|HEAD  api/v1/admin/dashboard .................................................................................. admin.dashboard  
+  GET|HEAD  api/v1/admin/projects/pending .................................................................... admin.projects.pending  
+  POST      api/v1/admin/projects/{id}/approve ............................................................... admin.projects.approve  
+  GET|HEAD  api/v1/admin/reports ...................................................................................... admin.reports  
+  GET|HEAD  api/v1/admin/users .......................................................................................... admin.users  
+  PUT       api/v1/admin/users/{id}/status ....................................................................... admin.users.status  
+  POST      api/v1/applications ................................................ applications.store › Api\ApplicationController@store  
+  GET|HEAD  api/v1/applications/{id} ............................................. applications.show › Api\ApplicationController@show  
+  DELETE    api/v1/applications/{id} ...................................... applications.withdraw › Api\ApplicationController@destroy  
+  POST      api/v1/applications/{id}/notes .................................. applications.notes › Api\ApplicationController@addNotes  
+  PUT       api/v1/applications/{id}/status ............................ applications.status › Api\ApplicationController@updateStatus  
+  POST      api/v1/auth/auth/resend-verification ................................. auth. › Api\Auth\AuthController@resendVerification  
+  POST      api/v1/auth/change-password ............................... auth.change-password › Api\Auth\AuthController@changePassword  
+  POST      api/v1/auth/forgot-password ....................... auth.forgot-password › Api\Auth\PasswordResetController@sendResetLink  
+  POST      api/v1/auth/login ............................................................ auth.login › Api\Auth\AuthController@login  
+  POST      api/v1/auth/logout ......................................................... auth.logout › Api\Auth\AuthController@logout  
+  POST      api/v1/auth/logout-all-devices ............................... auth.logout-all › Api\Auth\AuthController@logoutAllDevices  
+  GET|HEAD  api/v1/auth/me ..................................................................... auth.me › Api\Auth\AuthController@me  
+  POST      api/v1/auth/refresh-token ........................................... auth.refresh › Api\Auth\AuthController@refreshToken  
+  POST      api/v1/auth/register ................................................... auth.register › Api\Auth\AuthController@register  
+  POST      api/v1/auth/reset-password ................................. auth.reset-password › Api\Auth\PasswordResetController@reset  
+  GET|HEAD  api/v1/auth/sessions ................................................... auth.sessions › Api\Auth\AuthController@sessions  
+  DELETE    api/v1/auth/sessions/{tokenId} ............................. auth.sessions.revoke › Api\Auth\AuthController@revokeSession  
+  PUT       api/v1/auth/update-profile .................................. auth.update-profile › Api\Auth\AuthController@updateProfile  
+  POST      api/v1/email/verification-notification .............. email.verification.send › Api\Auth\EmailVerificationController@send  
+  GET|HEAD  api/v1/email/verification-status ................ email.verification.status › Api\Auth\EmailVerificationController@status  
+  POST      api/v1/email/verify .......................................... email.verify › Api\Auth\EmailVerificationController@verify  
+  GET|HEAD  api/v1/health ...........................................................................................................  
+  POST      api/v1/media/upload ........................................................... media.upload › Api\MediaController@upload  
+  GET|HEAD  api/v1/media/{id} ................................................................. media.show › Api\MediaController@show  
+  DELETE    api/v1/media/{id} ............................................................. media.delete › Api\MediaController@delete  
+  GET|HEAD  api/v1/messages ............................................................ messages.index › Api\MessageController@index  
+  POST      api/v1/messages ............................................................ messages.store › Api\MessageController@store  
+  GET|HEAD  api/v1/messages/conversations .............................. messages.conversations › Api\MessageController@conversations  
+  GET|HEAD  api/v1/messages/conversations/{userId} .................... messages.conversation › Api\MessageController@getConversation  
+  GET|HEAD  api/v1/messages/{id} ......................................................... messages.show › Api\MessageController@show  
+  DELETE    api/v1/messages/{id} ................................................... messages.destroy › Api\MessageController@destroy  
+  PUT       api/v1/messages/{id}/read .............................................. messages.read › Api\MessageController@markAsRead  
+  GET|HEAD  api/v1/notifications ............................................. notifications.index › Api\NotificationController@index  
+  POST      api/v1/notifications/read-all ......................... notifications.read-all › Api\NotificationController@markAllAsRead  
+  DELETE    api/v1/notifications/read/all .................. notifications.delete-all-read › Api\NotificationController@deleteAllRead  
+  GET|HEAD  api/v1/notifications/unread .................................... notifications.unread › Api\NotificationController@unread  
+  DELETE    api/v1/notifications/{id} .................................... notifications.destroy › Api\NotificationController@destroy  
+  POST      api/v1/notifications/{id}/read ............................... notifications.read › Api\NotificationController@markAsRead  
+  GET|HEAD  api/v1/portfolios/{portfolio}/similar ....................... portfolios.similar › Api\SearchController@similarPortfolios  
+  GET|HEAD  api/v1/projects ............................................................ projects.index › Api\ProjectController@index  
+  POST      api/v1/projects ............................................................ projects.store › Api\ProjectController@store  
+  GET|HEAD  api/v1/projects/search ................................................... projects.search › Api\ProjectController@search  
+  GET|HEAD  api/v1/projects/{id} ......................................................... projects.show › Api\ProjectController@show  
+  PUT       api/v1/projects/{id} ..................................................... projects.update › Api\ProjectController@update  
+  DELETE    api/v1/projects/{id} ................................................... projects.destroy › Api\ProjectController@destroy  
+  GET|HEAD  api/v1/projects/{id}/applications ............................ projects.applications › Api\ProjectController@applications  
+  POST      api/v1/projects/{id}/close ................................................. projects.close › Api\ProjectController@close  
+  POST      api/v1/projects/{id}/publish ........................................... projects.publish › Api\ProjectController@publish  
+  POST      api/v1/projects/{project}/match-talents ............. projects.match-talents › Api\SearchController@matchTalentsToProject  
+  GET|HEAD  api/v1/public/categories ............................................ public.categories › Api\PublicController@categories  
+  GET|HEAD  api/v1/public/projects .................................................. public.projects › Api\PublicController@projects  
+  GET|HEAD  api/v1/public/projects/{id} ..................................... public.projects.show › Api\PublicController@showProject  
+  GET|HEAD  api/v1/public/skills ........................................................ public.skills › Api\PublicController@skills  
+  GET|HEAD  api/v1/public/talents ..................................................... public.talents › Api\PublicController@talents  
+  GET|HEAD  api/v1/public/talents/{id} ........................................ public.talents.show › Api\PublicController@showTalent  
+  GET|HEAD  api/v1/recruiter/dashboard ...................................... recruiter.dashboard › Api\RecruiterController@dashboard  
+  GET|HEAD  api/v1/recruiter/profile ............................................ recruiter.profile › Api\RecruiterController@profile  
+  PUT       api/v1/recruiter/profile ............................... recruiter.profile.update › Api\RecruiterController@updateProfile  
+  POST      api/v1/recruiter/profile/logo ............................... recruiter.profile.logo › Api\RecruiterController@updateLogo  
+  GET|HEAD  api/v1/recruiter/talents/search ........................ recruiter.talents.search › Api\RecruiterController@searchTalents  
+  GET|HEAD  api/v1/recruiter/talents/{id} ............................... recruiter.talents.show › Api\RecruiterController@viewTalent  
+  POST      api/v1/recruiter/talents/{id}/save .......................... recruiter.talents.save › Api\RecruiterController@saveTalent  
+  DELETE    api/v1/recruiter/talents/{id}/unsave .................... recruiter.talents.unsave › Api\RecruiterController@unsaveTalent  
+  POST      api/v1/reviews ............................................................... reviews.store › Api\ReviewController@store  
+  GET|HEAD  api/v1/reviews/user/{userId} ......................................... reviews.user › Api\ReviewController@getUserReviews  
+  GET|HEAD  api/v1/reviews/{id} ............................................................ reviews.show › Api\ReviewController@show  
+  PUT       api/v1/reviews/{id} ........................................................ reviews.update › Api\ReviewController@update  
+  DELETE    api/v1/reviews/{id} ...................................................... reviews.destroy › Api\ReviewController@destroy  
+  POST      api/v1/search/talents ............................................... search.talents › Api\SearchController@searchTalents  
+  GET|HEAD  api/v1/skills/{skill}/related ....................................... skills.related › Api\SearchController@relatedSkills  
+  GET|HEAD  api/v1/talent/applications .................................. talent.applications.index › Api\ApplicationController@index  
+  GET|HEAD  api/v1/talent/applications/{id} ............................... talent.applications.show › Api\ApplicationController@show  
+  GET|HEAD  api/v1/talent/dashboard ................................. talent.dashboard › Api\Talent\TalentProfileController@dashboard  
+  GET|HEAD  api/v1/talent/education ................................... talent.education.index › Api\Talent\EducationController@index  
+  POST      api/v1/talent/education ................................... talent.education.store › Api\Talent\EducationController@store  
+  GET|HEAD  api/v1/talent/education/{id} ................................ talent.education.show › Api\Talent\EducationController@show  
+  PUT       api/v1/talent/education/{id} ............................ talent.education.update › Api\Talent\EducationController@update  
+  DELETE    api/v1/talent/education/{id} .......................... talent.education.destroy › Api\Talent\EducationController@destroy  
+  GET|HEAD  api/v1/talent/experiences ............................. talent.experiences.index › Api\Talent\ExperiencesController@index  
+  POST      api/v1/talent/experiences ............................. talent.experiences.store › Api\Talent\ExperiencesController@store  
+  GET|HEAD  api/v1/talent/experiences/{id} .......................... talent.experiences.show › Api\Talent\ExperiencesController@show  
+  PUT       api/v1/talent/experiences/{id} ...................... talent.experiences.update › Api\Talent\ExperiencesController@update  
+  DELETE    api/v1/talent/experiences/{id} .................... talent.experiences.destroy › Api\Talent\ExperiencesController@destroy  
+  GET|HEAD  api/v1/talent/portfolios ................................. talent.portfolios.index › Api\Talent\PortfolioController@index  
+  POST      api/v1/talent/portfolios ................................. talent.portfolios.store › Api\Talent\PortfolioController@store  
+  GET|HEAD  api/v1/talent/portfolios/{id} .............................. talent.portfolios.show › Api\Talent\PortfolioController@show  
+  POST      api/v1/talent/portfolios/{id} .......................... talent.portfolios.update › Api\Talent\PortfolioController@update  
+  DELETE    api/v1/talent/portfolios/{id} ........................ talent.portfolios.destroy › Api\Talent\PortfolioController@destroy  
+  GET|HEAD  api/v1/talent/profile .......................................... talent.profile › Api\Talent\TalentProfileController@show  
+  PUT       api/v1/talent/profile ................................. talent.profile.update › Api\Talent\TalentProfileController@update  
+  POST      api/v1/talent/profile ............................ talent.profile.update.post › Api\Talent\TalentProfileController@update  
+  POST      api/v1/talent/profile/avatar .................... talent.profile.avatar › Api\Talent\TalentProfileController@uploadAvatar  
+  GET|HEAD  api/v1/talent/skills ...................................... talent.skills.index › Api\Talent\TalentSkillsController@index  
+  POST      api/v1/talent/skills ...................................... talent.skills.store › Api\Talent\TalentSkillsController@store  
+  POST      api/v1/talent/skills/reorder .......................... talent.skills.reorder › Api\Talent\TalentSkillsController@reorder  
+  GET|HEAD  api/v1/talent/skills/{id} ................................... talent.skills.show › Api\Talent\TalentSkillsController@show  
+  PUT       api/v1/talent/skills/{id} ............................... talent.skills.update › Api\Talent\TalentSkillsController@update  
+  DELETE    api/v1/talent/skills/{id} ............................. talent.skills.destroy › Api\Talent\TalentSkillsController@destroy  
+  POST      api/v1/talent/skills/{id}/set-primary .......... talent.skills.set-primary › Api\Talent\TalentSkillsController@setPrimary  
+  POST      api/v1/talents/{talent}/match-projects .............. talents.match-projects › Api\SearchController@matchProjectsToTalent  
+  GET|HEAD  api/v1/talents/{talent}/recommendations .................. talents.recommendations › Api\SearchController@recommendations  
+  GET|HEAD  api/v1/test .............................................................................................................  
+  GET|HEAD  api/v1/test-embeddings ..................................................................................................  
+  POST      api/v1/two-factor/confirm ............................................ 2fa.confirm › Api\Auth\TwoFactorController@confirm  
+  DELETE    api/v1/two-factor/disable ............................................ 2fa.disable › Api\Auth\TwoFactorController@disable  
+  POST      api/v1/two-factor/enable ............................................... 2fa.enable › Api\Auth\TwoFactorController@enable  
+  GET|HEAD  api/v1/two-factor/qr-code ............................................. 2fa.qr-code › Api\Auth\TwoFactorController@qrCode  
+  GET|HEAD  api/v1/two-factor/recovery-codes ........................ 2fa.recovery-codes › Api\Auth\TwoFactorController@recoveryCodes  
+  POST      api/v1/two-factor/recovery-codes ... 2fa.recovery-codes.regenerate › Api\Auth\TwoFactorController@regenerateRecoveryCodes  
+  POST      api/v1/two-factor/verify ............................................... 2fa.verify › Api\Auth\TwoFactorController@verify  
+  OPTIONS   api/{any} ...............................................................................................................  
+  GET|HEAD  api/{fallbackPlaceholder} ...............................................................................................  
+  GET|HEAD  sanctum/csrf-cookie ................................... sanctum.csrf-cookie › Laravel\Sanctum › CsrfCookieController@show  
+  GET|HEAD  storage/{path} ............................................................................................ storage.local  
+  GET|HEAD  up ......................................................................................................................  
+
+                                                                                                                 Showing [129] routes  
