@@ -250,6 +250,11 @@ class Project extends Model
         return $this->belongsTo(RecruiterProfile::class);
     }
 
+    public function recruiter()
+{
+    return $this->belongsTo(User::class, 'recruiter_id');
+}
+
     /**
      * Get the category this project belongs to.
      */
