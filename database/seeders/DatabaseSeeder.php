@@ -879,20 +879,27 @@ class DatabaseSeeder extends Seeder
             'casting_call_expiring',
             'new_review',
             'project_update',
+            'interview_scheduled',
+            'payment_received',
         ];
         
         for ($i = 0; $i < $notificationCount; $i++) {
+            $type = $this->faker->randomElement($types);
+            
             DB::table('notifications')->insert([
                 'id' => (string) Str::orderedUuid(),
-                'type' => $this->faker->randomElement($types),
-                'notifiable_type' => 'App\\Models\\User',
-                'notifiable_id' => $this->faker->randomElement($this->userIds),
+                'user_id' => $this->faker->randomElement($this->userIds),
+                'type' => $type,
+                'title' => $this->faker->sentence(6),
+                'message' => $this->faker->paragraph(),
                 'data' => json_encode([
-                    'title' => $this->faker->sentence(),
-                    'message' => $this->faker->paragraph(),
-                    'action_url' => $this->faker->url,
+                    'action' => $this->faker->word,
+                    'reference_id' => (string) Str::uuid(),
                 ]),
+                'action_url' => $this->faker->boolean(70) ? $this->faker->url : null,
                 'read_at' => $this->faker->boolean(50) ? $this->faker->dateTimeBetween('-1 month', 'now') : null,
+                'is_important' => $this->faker->boolean(20),
+                'expires_at' => $this->faker->boolean(30) ? $this->faker->dateTimeBetween('+1 week', '+1 month') : null,
                 'created_at' => $this->faker->dateTimeBetween('-2 months', 'now'),
                 'updated_at' => now(),
             ]);
@@ -935,18 +942,29 @@ class DatabaseSeeder extends Seeder
     
     private function seedTalentSkills(): void
     {
-        foreach ($this->talentIds as $talentId) {
+        foreach ($this->talentProfileIds as $index => $talentProfileId) {
             $numberOfSkills = $this->faker->numberBetween(3, 10);
             $selectedSkills = $this->faker->randomElements($this->skillIds, $numberOfSkills);
             
-            foreach ($selectedSkills as $skillId) {
+            foreach ($selectedSkills as $i => $skillId) {
                 DB::table('talent_skills')->insert([
                     'id' => (string) Str::orderedUuid(),
-                    'user_id' => $talentId,
+                    'talent_profile_id' => $talentProfileId,
                     'skill_id' => $skillId,
-                    'proficiency_level' => $this->faker->numberBetween(1, 5),
+                    'proficiency_level' => $this->faker->randomElement(['beginner', 'intermediate', 'advanced', 'expert']),
                     'years_of_experience' => $this->faker->numberBetween(0, 15),
                     'is_primary' => $this->faker->boolean(30),
+                    'description' => $this->faker->boolean(50) ? $this->faker->paragraph() : null,
+                    'certifications' => $this->faker->boolean(30) ? json_encode(array_map(fn() => [
+                        'name' => $this->faker->words(3, true),
+                        'issuer' => $this->faker->company,
+                        'date' => $this->faker->date(),
+                    ], range(1, $this->faker->numberBetween(1, 2)))) : null,
+                    'is_verified' => $this->faker->boolean(40),
+                    'image_path' => null,
+                    'video_url' => $this->faker->boolean(20) ? $this->faker->url : null,
+                    'display_order' => $i,
+                    'show_on_profile' => $this->faker->boolean(85),
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
