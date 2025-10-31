@@ -114,6 +114,22 @@ class DatabaseSeeder extends Seeder
         DB::statement('SET CONSTRAINTS ALL IMMEDIATE');
     }
     
+    private function generateLanguages(): array
+    {
+        $languages = ['English', 'Spanish', 'French', 'German', 'Mandarin', 'Japanese', 'Arabic', 'Portuguese'];
+        $proficiencies = ['Native', 'Fluent', 'Intermediate', 'Beginner'];
+        
+        $count = $this->faker->numberBetween(1, 3);
+        $selectedLanguages = $this->faker->randomElements($languages, $count);
+        
+        $result = [];
+        foreach ($selectedLanguages as $language) {
+            $result[$language] = $this->faker->randomElement($proficiencies);
+        }
+        
+        return $result;
+    }
+    
     private function seedCategories(): void
     {
         $categories = [
@@ -374,10 +390,7 @@ class DatabaseSeeder extends Seeder
                 ]),
                 'preferred_locations' => json_encode($this->faker->randomElements(['United States', 'Europe', 'Asia', 'Remote'], $this->faker->numberBetween(1, 3))),
                 'notice_period' => $this->faker->randomElement(['immediate', '1 week', '2 weeks', '1 month', '3 months']),
-                'languages' => json_encode(array_combine(
-                    $this->faker->randomElements(['English', 'Spanish', 'French', 'German', 'Mandarin', 'Japanese'], $this->faker->numberBetween(1, 3)),
-                    $this->faker->randomElements(['Native', 'Fluent', 'Intermediate', 'Beginner'], $this->faker->numberBetween(1, 3))
-                )),
+                'languages' => json_encode($this->generateLanguages()),
                 'profile_completion_percentage' => $this->faker->numberBetween(60, 100),
                 'is_featured' => $this->faker->boolean(10),
                 'is_public' => $this->faker->boolean(85),
