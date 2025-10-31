@@ -718,29 +718,41 @@ class DatabaseSeeder extends Seeder
     private function seedApplications(): void
     {
         $applicationCount = 100;
-        $existingCombinations = [];
+        $existingProjectTalent = [];
+        $existingCastingTalent = [];
         $attempts = 0;
-        $maxAttempts = $applicationCount * 3; // Allow some retries
+        $maxAttempts = $applicationCount * 5;
         
         for ($i = 0; $i < $applicationCount && $attempts < $maxAttempts; $attempts++) {
-            // Randomly choose between project_id or casting_call_id
             $projectId = $this->faker->randomElement($this->projectIds);
             $talentId = $this->faker->randomElement($this->talentIds);
-            $combination = "{$projectId}-{$talentId}";
+            $hasCastingCall = $this->faker->boolean(50);
+            $castingCallId = $hasCastingCall ? $this->faker->randomElement($this->castingCallIds) : null;
             
-            // Skip if combination already exists (unique constraint)
-            if (isset($existingCombinations[$combination])) {
+            $projectTalentKey = "{$projectId}-{$talentId}";
+            $castingTalentKey = $castingCallId ? "{$talentId}-{$castingCallId}" : null;
+            
+            // Skip if project-talent combination already exists
+            if (isset($existingProjectTalent[$projectTalentKey])) {
                 continue;
             }
             
-            $existingCombinations[$combination] = true;
-            $hasCastingCall = $this->faker->boolean(50);
+            // Skip if casting-talent combination already exists
+            if ($castingTalentKey && isset($existingCastingTalent[$castingTalentKey])) {
+                continue;
+            }
+            
+            // Mark combinations as used
+            $existingProjectTalent[$projectTalentKey] = true;
+            if ($castingTalentKey) {
+                $existingCastingTalent[$castingTalentKey] = true;
+            }
             
             DB::table('applications')->insert([
                 'id' => (string) Str::orderedUuid(),
                 'project_id' => $projectId,
                 'talent_id' => $talentId,
-                'casting_call_id' => $hasCastingCall ? $this->faker->randomElement($this->castingCallIds) : null,
+                'casting_call_id' => $castingCallId,
                 'cover_letter' => $this->faker->paragraph(4),
                 'message' => $this->faker->paragraph(2),
                 'pitch' => $this->faker->paragraph(3),
@@ -781,11 +793,11 @@ class DatabaseSeeder extends Seeder
                 'updated_at' => now(),
             ]);
             
-            $i++; // Only increment on successful insert
+            $i++;
         }
         
         if ($i < $applicationCount) {
-            $this->command->warn("  ⚠ Only created {$i} applications (target was {$applicationCount})");
+            $this->command->warn("  ⚠ Created {$i} applications (target was {$applicationCount} - some duplicates skipped)");
         }
     }
     
