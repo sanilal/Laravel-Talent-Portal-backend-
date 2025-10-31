@@ -358,32 +358,35 @@ class DatabaseSeeder extends Seeder
             DB::table('talent_profiles')->insert([
                 'id' => $id,
                 'user_id' => $userId,
-                'headline' => $this->faker->catchPhrase,
+                'primary_category_id' => $this->faker->randomElement($this->categoryIds),
+                'professional_title' => $this->faker->jobTitle,
                 'summary' => $this->faker->paragraph(5),
-                'years_of_experience' => $this->faker->numberBetween(0, 20),
-                'portfolio_url' => $this->faker->boolean(50) ? $this->faker->url : null,
-                'resume_url' => $this->faker->boolean(50) ? $this->faker->url : null,
-                'video_intro_url' => $this->faker->boolean(20) ? $this->faker->url : null,
-                'certifications' => json_encode(array_map(function() {
-                    return [
-                        'name' => $this->faker->words(3, true),
-                        'issuer' => $this->faker->company,
-                        'date' => $this->faker->date(),
-                    ];
-                }, range(1, $this->faker->numberBetween(0, 3)))),
-                'awards' => json_encode(array_map(function() {
-                    return [
-                        'title' => $this->faker->words(4, true),
-                        'year' => $this->faker->year,
-                    ];
-                }, range(1, $this->faker->numberBetween(0, 2)))),
-                'physical_attributes' => json_encode([
-                    'height' => $this->faker->numberBetween(150, 200),
-                    'weight' => $this->faker->numberBetween(50, 100),
-                    'build' => $this->faker->randomElement(['slim', 'average', 'athletic', 'muscular']),
+                'experience_level' => $this->faker->randomElement(['entry', 'intermediate', 'senior', 'expert']),
+                'hourly_rate_min' => $this->faker->randomFloat(2, 25, 75),
+                'hourly_rate_max' => $this->faker->randomFloat(2, 100, 200),
+                'currency' => 'USD',
+                'availability_types' => json_encode($this->faker->randomElements(['full_time', 'part_time', 'contract', 'freelance'], $this->faker->numberBetween(1, 3))),
+                'is_available' => $this->faker->boolean(75),
+                'work_preferences' => json_encode([
+                    'remote' => $this->faker->boolean(60),
+                    'on_site' => $this->faker->boolean(40),
+                    'hybrid' => $this->faker->boolean(50),
                 ]),
+                'preferred_locations' => json_encode($this->faker->randomElements(['United States', 'Europe', 'Asia', 'Remote'], $this->faker->numberBetween(1, 3))),
+                'notice_period' => $this->faker->randomElement(['immediate', '1 week', '2 weeks', '1 month', '3 months']),
+                'languages' => json_encode(array_combine(
+                    $this->faker->randomElements(['English', 'Spanish', 'French', 'German', 'Mandarin', 'Japanese'], $this->faker->numberBetween(1, 3)),
+                    $this->faker->randomElements(['Native', 'Fluent', 'Intermediate', 'Beginner'], $this->faker->numberBetween(1, 3))
+                )),
+                'profile_completion_percentage' => $this->faker->numberBetween(60, 100),
                 'is_featured' => $this->faker->boolean(10),
-                'featured_until' => $this->faker->boolean(10) ? $this->faker->dateTimeBetween('now', '+3 months') : null,
+                'is_public' => $this->faker->boolean(85),
+                'profile_views' => $this->faker->numberBetween(0, 500),
+                'average_rating' => $this->faker->randomFloat(2, 3.0, 5.0),
+                'total_ratings' => $this->faker->numberBetween(0, 50),
+                'portfolio_highlights' => $this->faker->boolean(30) ? json_encode($this->faker->words(5)) : null,
+                'availability_updated_at' => $this->faker->dateTimeBetween('-1 month', 'now'),
+                'embedding_model' => 'all-MiniLM-L6-v2',
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
@@ -587,28 +590,74 @@ class DatabaseSeeder extends Seeder
     private function seedApplications(): void
     {
         $applicationCount = 100;
+        $existingCombinations = [];
+        $attempts = 0;
+        $maxAttempts = $applicationCount * 3; // Allow some retries
         
-        for ($i = 0; $i < $applicationCount; $i++) {
+        for ($i = 0; $i < $applicationCount && $attempts < $maxAttempts; $attempts++) {
+            // Randomly choose between project_id or casting_call_id
+            $projectId = $this->faker->randomElement($this->projectIds);
+            $talentId = $this->faker->randomElement($this->talentIds);
+            $combination = "{$projectId}-{$talentId}";
+            
+            // Skip if combination already exists (unique constraint)
+            if (isset($existingCombinations[$combination])) {
+                continue;
+            }
+            
+            $existingCombinations[$combination] = true;
+            $hasCastingCall = $this->faker->boolean(50);
+            
             DB::table('applications')->insert([
                 'id' => (string) Str::orderedUuid(),
-                'casting_call_id' => $this->faker->randomElement($this->castingCallIds),
-                'user_id' => $this->faker->randomElement($this->talentIds),
+                'project_id' => $projectId,
+                'talent_id' => $talentId,
+                'casting_call_id' => $hasCastingCall ? $this->faker->randomElement($this->castingCallIds) : null,
                 'cover_letter' => $this->faker->paragraph(4),
-                'resume_url' => $this->faker->url,
-                'portfolio_url' => $this->faker->boolean(50) ? $this->faker->url : null,
-                'video_url' => $this->faker->boolean(30) ? $this->faker->url : null,
+                'message' => $this->faker->paragraph(2),
+                'pitch' => $this->faker->paragraph(3),
                 'status' => $this->faker->randomElement(['pending', 'reviewing', 'shortlisted', 'interview', 'offered', 'accepted', 'rejected', 'withdrawn']),
                 'audition_status' => $this->faker->randomElement(['pending', 'under_review', 'shortlisted', 'callback', 'rejected', 'selected']),
-                'applied_at' => $this->faker->dateTimeBetween('-2 months', 'now'),
+                'proposed_rate' => $this->faker->randomFloat(2, 50, 200),
+                'rate_type' => $this->faker->randomElement(['hourly', 'daily', 'project']),
+                'currency' => 'AED',
+                'available_from' => $this->faker->dateTimeBetween('now', '+1 month')->format('Y-m-d'),
+                'available_until' => $this->faker->dateTimeBetween('+2 months', '+6 months')->format('Y-m-d'),
+                'resume_url' => $this->faker->boolean(70) ? $this->faker->url : null,
+                'audition_video_url' => $this->faker->boolean(30) ? $this->faker->url : null,
+                'attachments' => $this->faker->boolean(40) ? json_encode([$this->faker->url, $this->faker->url]) : null,
+                'portfolio_links' => $this->faker->boolean(50) ? json_encode([$this->faker->url]) : null,
+                'recruiter_id' => $this->faker->randomElement($this->recruiterIds),
+                'recruiter_notes' => $this->faker->boolean(40) ? $this->faker->paragraph() : null,
+                'feedback_to_talent' => $this->faker->boolean(20) ? $this->faker->paragraph() : null,
+                'rating' => $this->faker->boolean(40) ? $this->faker->numberBetween(1, 5) : null,
+                'viewed_at' => $this->faker->boolean(60) ? $this->faker->dateTimeBetween('-1 month', 'now') : null,
+                'responded_at' => $this->faker->boolean(40) ? $this->faker->dateTimeBetween('-2 weeks', 'now') : null,
                 'reviewed_at' => $this->faker->boolean(60) ? $this->faker->dateTimeBetween('-1 month', 'now') : null,
+                'shortlisted_at' => $this->faker->boolean(30) ? $this->faker->dateTimeBetween('-2 weeks', 'now') : null,
+                'interview_scheduled_at' => $this->faker->boolean(20) ? $this->faker->dateTimeBetween('-1 week', 'now') : null,
                 'interview_date' => $this->faker->boolean(30) ? $this->faker->dateTimeBetween('now', '+2 weeks') : null,
                 'interview_type' => $this->faker->boolean(30) ? $this->faker->randomElement(['in_person', 'video_call', 'phone']) : null,
                 'interview_location' => $this->faker->boolean(20) ? $this->faker->address : null,
-                'notes' => $this->faker->boolean(40) ? $this->faker->paragraph() : null,
-                'rating' => $this->faker->boolean(40) ? $this->faker->numberBetween(1, 5) : null,
+                'interview_notes' => $this->faker->boolean(15) ? $this->faker->paragraph() : null,
+                'accepted_at' => $this->faker->boolean(10) ? $this->faker->dateTimeBetween('-1 week', 'now') : null,
+                'rejected_at' => $this->faker->boolean(15) ? $this->faker->dateTimeBetween('-1 week', 'now') : null,
+                'withdrawn_at' => $this->faker->boolean(5) ? $this->faker->dateTimeBetween('-2 weeks', 'now') : null,
+                'withdrawn_by' => $this->faker->boolean(5) ? $this->faker->randomElement($this->talentIds) : null,
+                'is_read' => $this->faker->boolean(60),
+                'read_at' => $this->faker->boolean(60) ? $this->faker->dateTimeBetween('-1 month', 'now') : null,
+                'source' => $this->faker->randomElement(['web', 'mobile', 'api', 'referral']),
+                'referral_code' => $this->faker->boolean(10) ? $this->faker->bothify('REF-####') : null,
+                'metadata' => $this->faker->boolean(20) ? json_encode(['notes' => $this->faker->sentence()]) : null,
                 'created_at' => $this->faker->dateTimeBetween('-2 months', 'now'),
                 'updated_at' => now(),
             ]);
+            
+            $i++; // Only increment on successful insert
+        }
+        
+        if ($i < $applicationCount) {
+            $this->command->warn("  ⚠ Only created {$i} applications (target was {$applicationCount})");
         }
     }
     
