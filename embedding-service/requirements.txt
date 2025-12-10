@@ -1,4 +1,6 @@
 flask==3.0.0
 sentence-transformers==2.2.2
+huggingface-hub>=0.26.0
 torch>=2.2.0
+gunicorn
 numpy

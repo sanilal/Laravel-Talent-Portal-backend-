@@ -188,6 +188,11 @@ def calculate_similarity():
         return jsonify({'error': str(e)}), 500
 
 
-if __name__ == '__main__':
-    # Run on port 5001 (Laravel runs on 8000, avoid conflicts)
-    app.run(host='0.0.0.0', port=5001, debug=False)
+print("Top-level code ran, __name__ =", __name__)
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5001, debug=True)
+
+
+
+

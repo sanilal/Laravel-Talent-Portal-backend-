@@ -15,7 +15,7 @@ class RoleMiddleware
      */
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
-        // ✅ FIX: Use $request->user() instead of Auth::check() for Sanctum compatibility
+        //  Use $request->user() instead of Auth::check() for Sanctum compatibility
         $user = $request->user();
 
         // Check if user is authenticated
