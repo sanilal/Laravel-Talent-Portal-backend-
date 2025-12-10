@@ -1,11 +1,10 @@
-# Dockerfile for Laravel 12 - Talents You Need Backend
-# This file tells Docker how to build and run your Laravel application
-
-# Start with PHP 8.3 with FPM (FastCGI Process Manager)
+# Use PHP 8.3 FPM base image
 FROM php:8.3-fpm
 
+# Copy Composer from official image
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
 # Install system dependencies
-# These are Linux packages your app needs to run
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -18,11 +17,11 @@ RUN apt-get update && apt-get install -y \
     unzip \
     nginx \
     supervisor \
+    gettext-base \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Install PHP extensions
-# These are required by Laravel and your dependencies
 RUN docker-php-ext-install \
     pdo \
     pdo_pgsql \
@@ -34,19 +33,16 @@ RUN docker-php-ext-install \
     gd \
     zip
 
-# Install Composer (PHP package manager)
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-
 # Set working directory
 WORKDIR /var/www
 
 # Copy application files
 COPY . /var/www
 
-# Install PHP dependencies (from composer.json)
+# Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
-# Create necessary directories for Laravel
+# Create necessary directories
 RUN mkdir -p \
     storage/logs \
     storage/framework/cache \
@@ -54,25 +50,25 @@ RUN mkdir -p \
     storage/framework/views \
     bootstrap/cache
 
-# Set proper permissions
-# www-data is the user that runs PHP-FPM and nginx
+# Set permissions
 RUN chown -R www-data:www-data /var/www \
     && chmod -R 755 /var/www/storage \
     && chmod -R 755 /var/www/bootstrap/cache
 
-# Copy nginx configuration
+# Copy configuration files
 COPY docker/nginx.conf /etc/nginx/sites-available/default
-
-# Copy supervisor configuration
-# Supervisor keeps multiple processes running (nginx, PHP-FPM, queue worker)
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-
-# Copy startup script
 COPY docker/start.sh /usr/local/bin/start.sh
+
+# Make start script executable
 RUN chmod +x /usr/local/bin/start.sh
 
-# Expose port 10000 (Render uses this port)
-EXPOSE 10000
+# Expose port (Railway will override this with $PORT)
+EXPOSE 8080
 
-# Run the startup script
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s \
+  CMD curl -f http://localhost:${PORT:-8080}/api/health || exit 1
+
+# Start application
 CMD ["/usr/local/bin/start.sh"]
