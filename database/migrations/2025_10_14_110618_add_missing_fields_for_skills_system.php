@@ -10,134 +10,135 @@ return new class extends Migration
     public function up(): void
     {
         // Check and add missing fields to users table
+        // Removed ->after() clauses as Laravel 11/12 has different default user table structure
         if (!Schema::hasColumn('users', 'professional_title')) {
             Schema::table('users', function (Blueprint $table) {
-                $table->string('professional_title')->nullable()->after('name');
+                $table->string('professional_title')->nullable();
             });
         }
 
         if (!Schema::hasColumn('users', 'bio')) {
             Schema::table('users', function (Blueprint $table) {
-                $table->text('bio')->nullable()->after('email');
+                $table->text('bio')->nullable();
             });
         }
 
         if (!Schema::hasColumn('users', 'avatar')) {
             Schema::table('users', function (Blueprint $table) {
-                $table->string('avatar')->nullable()->after('bio');
+                $table->string('avatar')->nullable();
             });
         }
 
         if (!Schema::hasColumn('users', 'cover_image')) {
             Schema::table('users', function (Blueprint $table) {
-                $table->string('cover_image')->nullable()->after('avatar');
+                $table->string('cover_image')->nullable();
             });
         }
 
         if (!Schema::hasColumn('users', 'city')) {
             Schema::table('users', function (Blueprint $table) {
-                $table->string('city')->nullable()->after('cover_image');
-                $table->string('state')->nullable()->after('city');
-                $table->string('country')->nullable()->after('state');
+                $table->string('city')->nullable();
+                $table->string('state')->nullable();
+                $table->string('country')->nullable();
             });
         }
 
         if (!Schema::hasColumn('users', 'hourly_rate')) {
             Schema::table('users', function (Blueprint $table) {
-                $table->decimal('hourly_rate', 10, 2)->nullable()->after('country');
-                $table->string('currency', 3)->default('USD')->after('hourly_rate');
+                $table->decimal('hourly_rate', 10, 2)->nullable();
+                $table->string('currency', 3)->default('USD');
             });
         }
 
         if (!Schema::hasColumn('users', 'experience_level')) {
             Schema::table('users', function (Blueprint $table) {
-                $table->enum('experience_level', ['entry', 'intermediate', 'senior', 'expert'])->nullable()->after('currency');
+                $table->enum('experience_level', ['entry', 'intermediate', 'senior', 'expert'])->nullable();
             });
         }
 
         if (!Schema::hasColumn('users', 'availability_status')) {
             Schema::table('users', function (Blueprint $table) {
-                $table->enum('availability_status', ['available', 'busy', 'not_available'])->default('available')->after('experience_level');
+                $table->enum('availability_status', ['available', 'busy', 'not_available'])->default('available');
             });
         }
 
         if (!Schema::hasColumn('users', 'profile_views')) {
             Schema::table('users', function (Blueprint $table) {
-                $table->integer('profile_views')->default(0)->after('availability_status');
+                $table->integer('profile_views')->default(0);
             });
         }
 
         if (!Schema::hasColumn('users', 'profile_completion')) {
             Schema::table('users', function (Blueprint $table) {
-                $table->integer('profile_completion')->default(0)->after('profile_views');
+                $table->integer('profile_completion')->default(0);
             });
         }
 
         if (!Schema::hasColumn('users', 'languages')) {
             Schema::table('users', function (Blueprint $table) {
-                $table->json('languages')->nullable()->after('profile_completion');
+                $table->json('languages')->nullable();
             });
         }
 
         if (!Schema::hasColumn('users', 'website')) {
             Schema::table('users', function (Blueprint $table) {
-                $table->string('website')->nullable()->after('languages');
-                $table->string('linkedin_url')->nullable()->after('website');
-                $table->string('twitter_url')->nullable()->after('linkedin_url');
-                $table->string('instagram_url')->nullable()->after('twitter_url');
+                $table->string('website')->nullable();
+                $table->string('linkedin_url')->nullable();
+                $table->string('twitter_url')->nullable();
+                $table->string('instagram_url')->nullable();
             });
         }
 
         // Check talent_skills table
         if (!Schema::hasColumn('talent_skills', 'description')) {
             Schema::table('talent_skills', function (Blueprint $table) {
-                $table->text('description')->nullable()->after('skill_id');
+                $table->text('description')->nullable();
             });
         }
 
         if (!Schema::hasColumn('talent_skills', 'proficiency_level')) {
             Schema::table('talent_skills', function (Blueprint $table) {
-                $table->enum('proficiency_level', ['beginner', 'intermediate', 'advanced', 'expert'])->default('intermediate')->after('description');
+                $table->enum('proficiency_level', ['beginner', 'intermediate', 'advanced', 'expert'])->default('intermediate');
             });
         }
 
         if (!Schema::hasColumn('talent_skills', 'years_of_experience')) {
             Schema::table('talent_skills', function (Blueprint $table) {
-                $table->integer('years_of_experience')->nullable()->after('proficiency_level');
+                $table->integer('years_of_experience')->nullable();
             });
         }
 
         if (!Schema::hasColumn('talent_skills', 'image_path')) {
             Schema::table('talent_skills', function (Blueprint $table) {
-                $table->string('image_path')->nullable()->after('years_of_experience');
-                $table->string('video_url')->nullable()->after('image_path');
+                $table->string('image_path')->nullable();
+                $table->string('video_url')->nullable();
             });
         }
 
         if (!Schema::hasColumn('talent_skills', 'is_primary')) {
             Schema::table('talent_skills', function (Blueprint $table) {
-                $table->boolean('is_primary')->default(false)->after('video_url');
-                $table->integer('display_order')->default(0)->after('is_primary');
-                $table->boolean('show_on_profile')->default(true)->after('display_order');
+                $table->boolean('is_primary')->default(false);
+                $table->integer('display_order')->default(0);
+                $table->boolean('show_on_profile')->default(true);
             });
         }
 
         // Check skills table
         if (!Schema::hasColumn('skills', 'icon')) {
             Schema::table('skills', function (Blueprint $table) {
-                $table->string('icon')->nullable()->after('name');
+                $table->string('icon')->nullable();
             });
         }
 
         if (!Schema::hasColumn('skills', 'talents_count')) {
             Schema::table('skills', function (Blueprint $table) {
-                $table->integer('talents_count')->default(0)->after('icon');
+                $table->integer('talents_count')->default(0);
             });
         }
 
         if (!Schema::hasColumn('skills', 'is_active')) {
             Schema::table('skills', function (Blueprint $table) {
-                $table->boolean('is_active')->default(true)->after('talents_count');
+                $table->boolean('is_active')->default(true);
             });
         }
 
@@ -145,7 +146,7 @@ return new class extends Migration
         if (!Schema::hasColumn('experiences', 'user_id')) {
             // Step 1: Add column as nullable UUID
             Schema::table('experiences', function (Blueprint $table) {
-                $table->uuid('user_id')->nullable()->after('id');
+                $table->uuid('user_id')->nullable();
             });
 
             // Step 2: Populate existing records
@@ -167,7 +168,7 @@ return new class extends Migration
 
         if (!Schema::hasColumn('experiences', 'is_current')) {
             Schema::table('experiences', function (Blueprint $table) {
-                $table->boolean('is_current')->default(false)->after('end_date');
+                $table->boolean('is_current')->default(false);
             });
         }
 
@@ -175,7 +176,7 @@ return new class extends Migration
         if (!Schema::hasColumn('education', 'user_id')) {
             // Step 1: Add column as nullable UUID
             Schema::table('education', function (Blueprint $table) {
-                $table->uuid('user_id')->nullable()->after('id');
+                $table->uuid('user_id')->nullable();
             });
 
             // Step 2: Populate existing records
@@ -197,15 +198,15 @@ return new class extends Migration
 
         if (!Schema::hasColumn('education', 'is_current')) {
             Schema::table('education', function (Blueprint $table) {
-                $table->boolean('is_current')->default(false)->after('end_date');
+                $table->boolean('is_current')->default(false);
             });
         }
 
         // Check portfolios table
         if (!Schema::hasColumn('portfolios', 'is_featured')) {
             Schema::table('portfolios', function (Blueprint $table) {
-                $table->boolean('is_featured')->default(false)->after('external_url');
-                $table->integer('display_order')->default(0)->after('is_featured');
+                $table->boolean('is_featured')->default(false);
+                $table->integer('display_order')->default(0);
             });
         }
     }
