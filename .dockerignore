@@ -1,0 +1,61 @@
+# .dockerignore
+# These files/folders won't be copied into the Docker container
+# This makes the build faster and the container smaller
+
+# Git files
+.git
+.gitignore
+.gitattributes
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# IDE files
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# Node modules (if you have any)
+node_modules
+npm-debug.log
+yarn-error.log
+
+# PHP vendor folder (will be installed during build)
+vendor
+
+# Laravel specific
+storage/app/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/logs/*
+bootstrap/cache/*
+!storage/app/.gitignore
+!storage/app/public/.gitignore
+!storage/framework/.gitignore
+!storage/framework/cache/.gitignore
+!storage/logs/.gitignore
+!bootstrap/cache/.gitignore
+
+# Testing
+.phpunit.result.cache
+.phpunit.cache
+coverage
+
+# Documentation
+README.md
+CHANGELOG.md
+docs
+
+# Deployment files
+docker-compose.yml
+.dockerignore
+Dockerfile
+
+# OS files
+.DS_Store
+Thumbs.db
