@@ -60,11 +60,11 @@ Route::prefix('v1')->group(function () {
     Route::get('/test-embeddings', function () {
         try {
             $service = app(\App\Services\EmbeddingService::class);
-            
+
             $testText = "Senior Full Stack Developer with expertise in Laravel, PostgreSQL, React, and Next.js";
-            
+
             $embedding = $service->generateEmbedding($testText);
-            
+
             return response()->json([
                 'success' => true,
                 'test_text' => $testText,
@@ -73,7 +73,7 @@ Route::prefix('v1')->group(function () {
                 'service_url' => config('services.embeddings.url'),
                 'message' => 'Embedding service is working correctly!'
             ]);
-            
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -118,7 +118,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/refresh-token', [AuthController::class, 'refreshToken'])->name('refresh');
             Route::put('/update-profile', [AuthController::class, 'updateProfile'])->name('update-profile');
             Route::post('/change-password', [AuthController::class, 'changePassword'])->name('change-password');
-            Route::post('/auth/resend-verification', [AuthController::class, 'resendVerification']);
+            Route::post('/resend-verification', [AuthController::class, 'resendVerification']);
 
             // Session management
             Route::get('/sessions', [AuthController::class, 'sessions'])->name('sessions');
@@ -135,7 +135,7 @@ Route::prefix('v1')->group(function () {
             ->middleware('throttle:6,1')
             ->name('verification.send');
         Route::post('/verify', [EmailVerificationController::class, 'verify'])->name('verify');
-        Route::get('/verification-status', [EmailVerificationController::class, 'status'])->name('verification.status');        
+        Route::get('/verification-status', [EmailVerificationController::class, 'status'])->name('verification.status');
     });
 
     // ============================================
@@ -231,7 +231,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/talents/search', [RecruiterController::class, 'searchTalents'])->name('talents.search');
             Route::get('/talents/{id}', [RecruiterController::class, 'viewTalent'])->name('talents.show');
             Route::post('/talents/{id}/save', [RecruiterController::class, 'saveTalent'])->name('talents.save');
-            Route::delete('/talents/{id}/unsave', [RecruiterController::class, 'unsaveTalent'])->name('talents.unsave');        
+            Route::delete('/talents/{id}/unsave', [RecruiterController::class, 'unsaveTalent'])->name('talents.unsave');
         });
 
         // ============================================
@@ -332,9 +332,9 @@ Route::prefix('v1')->group(function () {
         // ============================================
         // SEARCH & MATCHING API ROUTES (NEW)
         // ============================================
-        
+
         Route::prefix('search')->name('search.')->group(function () {
-            
+
             /**
              * Semantic Talent Search
              * POST /api/v1/search/talents
@@ -355,7 +355,7 @@ Route::prefix('v1')->group(function () {
          */
         Route::post('/projects/{project}/match-talents', [SearchController::class, 'matchTalentsToProject'])
             ->name('projects.match-talents');
-        
+
         /**
          * Talent-to-Project Matching
          * POST /api/v1/talents/{talent}/match-projects
@@ -366,7 +366,7 @@ Route::prefix('v1')->group(function () {
          */
         Route::post('/talents/{talent}/match-projects', [SearchController::class, 'matchProjectsToTalent'])
             ->name('talents.match-projects');
-        
+
         /**
          * Similar Portfolios
          * GET /api/v1/portfolios/{portfolio}/similar
@@ -376,7 +376,7 @@ Route::prefix('v1')->group(function () {
          */
         Route::get('/portfolios/{portfolio}/similar', [SearchController::class, 'similarPortfolios'])
             ->name('portfolios.similar');
-        
+
         /**
          * Related Skills
          * GET /api/v1/skills/{skill}/related
@@ -386,7 +386,7 @@ Route::prefix('v1')->group(function () {
          */
         Route::get('/skills/{skill}/related', [SearchController::class, 'relatedSkills'])
             ->name('skills.related');
-        
+
         /**
          * Smart Recommendations
          * GET /api/v1/talents/{talent}/recommendations
