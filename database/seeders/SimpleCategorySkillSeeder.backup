@@ -1,0 +1,202 @@
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+
+class SimpleCategorySkillSeeder extends Seeder
+{
+    public function run(): void
+    {
+        $this->command->info('🌱 Seeding Categories and Skills for MySQL...');
+        
+        // MySQL-compatible foreign key handling
+        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        
+        // Clear existing data
+        $this->command->info('🗑️  Clearing existing categories and skills...');
+        DB::table('skills')->truncate();
+        DB::table('categories')->truncate();
+        
+        // Re-enable foreign key checks
+        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        
+        // Seed Categories
+        $this->command->info('📊 Creating categories...');
+        $categories = [
+            [
+                'id' => (string) Str::orderedUuid(),
+                'name' => 'Actor',
+                'slug' => 'actor',
+                'description' => 'Film, TV, and theater actors',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => (string) Str::orderedUuid(),
+                'name' => 'Model',
+                'slug' => 'model',
+                'description' => 'Fashion, commercial, and promotional models',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => (string) Str::orderedUuid(),
+                'name' => 'Musician',
+                'slug' => 'musician',
+                'description' => 'Singers, instrumentalists, and composers',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => (string) Str::orderedUuid(),
+                'name' => 'Dancer',
+                'slug' => 'dancer',
+                'description' => 'Contemporary, ballet, hip-hop, and traditional dancers',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => (string) Str::orderedUuid(),
+                'name' => 'Voice Artist',
+                'slug' => 'voice-artist',
+                'description' => 'Voice-over artists and dubbing professionals',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => (string) Str::orderedUuid(),
+                'name' => 'Photographer',
+                'slug' => 'photographer',
+                'description' => 'Professional photographers',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => (string) Str::orderedUuid(),
+                'name' => 'Videographer',
+                'slug' => 'videographer',
+                'description' => 'Video production professionals',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => (string) Str::orderedUuid(),
+                'name' => 'Makeup Artist',
+                'slug' => 'makeup-artist',
+                'description' => 'Makeup and styling professionals',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => (string) Str::orderedUuid(),
+                'name' => 'Technical Crew',
+                'slug' => 'technical-crew',
+                'description' => 'Lighting, sound, and stage technicians',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ];
+        
+        foreach ($categories as $category) {
+            DB::table('categories')->insert($category);
+            $this->command->info("  ✓ Created: {$category['name']}");
+        }
+        
+        // Get category IDs
+        $actorId = DB::table('categories')->where('slug', 'actor')->value('id');
+        $modelId = DB::table('categories')->where('slug', 'model')->value('id');
+        $musicianId = DB::table('categories')->where('slug', 'musician')->value('id');
+        $dancerId = DB::table('categories')->where('slug', 'dancer')->value('id');
+        $voiceId = DB::table('categories')->where('slug', 'voice-artist')->value('id');
+        $photographerId = DB::table('categories')->where('slug', 'photographer')->value('id');
+        $videographerId = DB::table('categories')->where('slug', 'videographer')->value('id');
+        $makeupId = DB::table('categories')->where('slug', 'makeup-artist')->value('id');
+        $technicalId = DB::table('categories')->where('slug', 'technical-crew')->value('id');
+        
+        // Seed Skills
+        $this->command->info('🎯 Creating skills...');
+        $skills = [
+            // Actor skills
+            ['name' => 'Film Acting', 'category_id' => $actorId, 'slug' => 'film-acting'],
+            ['name' => 'TV Acting', 'category_id' => $actorId, 'slug' => 'tv-acting'],
+            ['name' => 'Theater Acting', 'category_id' => $actorId, 'slug' => 'theater-acting'],
+            ['name' => 'Comedy', 'category_id' => $actorId, 'slug' => 'comedy'],
+            ['name' => 'Drama', 'category_id' => $actorId, 'slug' => 'drama'],
+            
+            // Model skills
+            ['name' => 'Fashion Modeling', 'category_id' => $modelId, 'slug' => 'fashion-modeling'],
+            ['name' => 'Commercial Modeling', 'category_id' => $modelId, 'slug' => 'commercial-modeling'],
+            ['name' => 'Runway', 'category_id' => $modelId, 'slug' => 'runway'],
+            ['name' => 'Fitness Modeling', 'category_id' => $modelId, 'slug' => 'fitness-modeling'],
+            ['name' => 'Editorial', 'category_id' => $modelId, 'slug' => 'editorial'],
+            
+            // Musician skills
+            ['name' => 'Singing', 'category_id' => $musicianId, 'slug' => 'singing'],
+            ['name' => 'Guitar', 'category_id' => $musicianId, 'slug' => 'guitar'],
+            ['name' => 'Piano', 'category_id' => $musicianId, 'slug' => 'piano'],
+            ['name' => 'Drums', 'category_id' => $musicianId, 'slug' => 'drums'],
+            ['name' => 'Violin', 'category_id' => $musicianId, 'slug' => 'violin'],
+            ['name' => 'Music Production', 'category_id' => $musicianId, 'slug' => 'music-production'],
+            
+            // Dancer skills
+            ['name' => 'Ballet', 'category_id' => $dancerId, 'slug' => 'ballet'],
+            ['name' => 'Hip Hop', 'category_id' => $dancerId, 'slug' => 'hip-hop'],
+            ['name' => 'Contemporary', 'category_id' => $dancerId, 'slug' => 'contemporary'],
+            ['name' => 'Salsa', 'category_id' => $dancerId, 'slug' => 'salsa'],
+            ['name' => 'Bollywood', 'category_id' => $dancerId, 'slug' => 'bollywood'],
+            ['name' => 'Choreography', 'category_id' => $dancerId, 'slug' => 'choreography'],
+            
+            // Voice Artist skills
+            ['name' => 'Commercial Voice Over', 'category_id' => $voiceId, 'slug' => 'commercial-vo'],
+            ['name' => 'Animation Voice', 'category_id' => $voiceId, 'slug' => 'animation-voice'],
+            ['name' => 'Documentary Narration', 'category_id' => $voiceId, 'slug' => 'doc-narration'],
+            ['name' => 'Audiobook', 'category_id' => $voiceId, 'slug' => 'audiobook'],
+            
+            // Photographer skills
+            ['name' => 'Portrait Photography', 'category_id' => $photographerId, 'slug' => 'portrait-photo'],
+            ['name' => 'Fashion Photography', 'category_id' => $photographerId, 'slug' => 'fashion-photo'],
+            ['name' => 'Event Photography', 'category_id' => $photographerId, 'slug' => 'event-photo'],
+            
+            // Videographer skills
+            ['name' => 'Cinematography', 'category_id' => $videographerId, 'slug' => 'cinematography'],
+            ['name' => 'Video Editing', 'category_id' => $videographerId, 'slug' => 'video-editing'],
+            ['name' => 'Drone Operation', 'category_id' => $videographerId, 'slug' => 'drone-op'],
+            
+            // Makeup Artist skills
+            ['name' => 'Fashion Makeup', 'category_id' => $makeupId, 'slug' => 'fashion-makeup'],
+            ['name' => 'Bridal Makeup', 'category_id' => $makeupId, 'slug' => 'bridal-makeup'],
+            ['name' => 'Special Effects Makeup', 'category_id' => $makeupId, 'slug' => 'sfx-makeup'],
+            
+            // Technical Crew skills
+            ['name' => 'Lighting Technician', 'category_id' => $technicalId, 'slug' => 'lighting-tech'],
+            ['name' => 'Sound Engineer', 'category_id' => $technicalId, 'slug' => 'sound-engineer'],
+            ['name' => 'Stage Manager', 'category_id' => $technicalId, 'slug' => 'stage-manager'],
+        ];
+        
+        foreach ($skills as $skill) {
+            DB::table('skills')->insert([
+                'id' => (string) Str::orderedUuid(),
+                'name' => $skill['name'],
+                'slug' => $skill['slug'],
+                'category_id' => $skill['category_id'],
+                'description' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            $this->command->info("  ✓ Created skill: {$skill['name']}");
+        }
+        
+        $categoryCount = DB::table('categories')->count();
+        $skillCount = DB::table('skills')->count();
+        
+        $this->command->info('');
+        $this->command->info('✅ Seeding completed successfully!');
+        $this->command->info("📊 Categories: {$categoryCount}");
+        $this->command->info("🎯 Skills: {$skillCount}");
+        $this->command->info('');
+        $this->command->info('🎉 You can now register talents and recruiters!');
+    }
+}

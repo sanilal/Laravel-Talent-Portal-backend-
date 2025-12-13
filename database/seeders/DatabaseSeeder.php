@@ -105,14 +105,14 @@ class DatabaseSeeder extends Seeder
             'categories',
         ];
         
-        DB::statement('SET CONSTRAINTS ALL DEFERRED');
+        DB::statement('SET FOREIGN_KEY_CHECKS=0');
         
         foreach ($tablesToClear as $table) {
             DB::table($table)->truncate();
             $this->command->info("  ✓ Cleared {$table}");
         }
         
-        DB::statement('SET CONSTRAINTS ALL IMMEDIATE');
+        DB::statement('SET FOREIGN_KEY_CHECKS=1');
     }
     
     private function generateLanguages(): array
