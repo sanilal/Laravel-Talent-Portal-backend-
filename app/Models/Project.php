@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
@@ -248,6 +249,11 @@ class Project extends Model
     public function recruiterProfile()
     {
         return $this->belongsTo(RecruiterProfile::class);
+    }
+
+    public function projectType(): BelongsTo
+    {
+        return $this->belongsTo(ProjectType::class);
     }
 
     public function recruiter()
