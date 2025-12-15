@@ -43,4 +43,9 @@ class Category extends Model
     {
         return $this->hasMany(Project::class);
     }
+
+    public function subcategories(): HasMany
+    {
+        return $this->hasMany(Subcategory::class);
+    }
 }
