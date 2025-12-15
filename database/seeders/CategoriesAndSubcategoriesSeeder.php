@@ -11,12 +11,18 @@ class CategoriesAndSubcategoriesSeeder extends Seeder
     /**
      * Run the database seeds.
      * Based on yourmoca.com structure
+     * 
+     * This seeder is idempotent - safe to run multiple times
      */
     public function run(): void
     {
+        // Optional: Clear existing data
+        // Uncomment these lines if you want to start fresh each time
+        // DB::table('subcategories')->delete();
+        // DB::table('categories')->delete();
+
         $categories = [
             [
-                'id' => Str::uuid()->toString(),
                 'name' => 'Artist',
                 'slug' => 'artist',
                 'description' => 'Actors, models, singers, and performers',
@@ -24,8 +30,6 @@ class CategoriesAndSubcategoriesSeeder extends Seeder
                 'color' => '#FF6B6B',
                 'is_active' => true,
                 'sort_order' => 1,
-                'created_at' => now(),
-                'updated_at' => now(),
                 'subcategories' => [
                     ['name' => 'Actor', 'slug' => 'actor', 'sort_order' => 1],
                     ['name' => 'Actress', 'slug' => 'actress', 'sort_order' => 2],
@@ -38,7 +42,6 @@ class CategoriesAndSubcategoriesSeeder extends Seeder
                 ],
             ],
             [
-                'id' => Str::uuid()->toString(),
                 'name' => 'Crew',
                 'slug' => 'crew',
                 'description' => 'Technical and creative crew members',
@@ -46,8 +49,6 @@ class CategoriesAndSubcategoriesSeeder extends Seeder
                 'color' => '#4ECDC4',
                 'is_active' => true,
                 'sort_order' => 2,
-                'created_at' => now(),
-                'updated_at' => now(),
                 'subcategories' => [
                     ['name' => 'Director', 'slug' => 'director', 'sort_order' => 1],
                     ['name' => 'Director of Photography', 'slug' => 'dop', 'sort_order' => 2],
@@ -105,7 +106,6 @@ class CategoriesAndSubcategoriesSeeder extends Seeder
                 ],
             ],
             [
-                'id' => Str::uuid()->toString(),
                 'name' => 'Vendor',
                 'slug' => 'vendor',
                 'description' => 'Equipment, locations, and services',
@@ -113,8 +113,6 @@ class CategoriesAndSubcategoriesSeeder extends Seeder
                 'color' => '#95E1D3',
                 'is_active' => true,
                 'sort_order' => 3,
-                'created_at' => now(),
-                'updated_at' => now(),
                 'subcategories' => [
                     ['name' => 'Film Equipment', 'slug' => 'film-equipment', 'sort_order' => 1],
                     ['name' => 'Studio', 'slug' => 'studio', 'sort_order' => 2],
@@ -126,7 +124,6 @@ class CategoriesAndSubcategoriesSeeder extends Seeder
                 ],
             ],
             [
-                'id' => Str::uuid()->toString(),
                 'name' => 'Wedding Filmmaker',
                 'slug' => 'wedding-filmmaker',
                 'description' => 'Wedding and event professionals',
@@ -134,8 +131,6 @@ class CategoriesAndSubcategoriesSeeder extends Seeder
                 'color' => '#F38181',
                 'is_active' => true,
                 'sort_order' => 4,
-                'created_at' => now(),
-                'updated_at' => now(),
                 'subcategories' => [
                     ['name' => 'Wedding Photographer', 'slug' => 'wedding-photographer', 'sort_order' => 1],
                     ['name' => 'Wedding Videographer', 'slug' => 'wedding-videographer', 'sort_order' => 2],
@@ -146,32 +141,95 @@ class CategoriesAndSubcategoriesSeeder extends Seeder
             ],
         ];
 
+        $categoriesCreated = 0;
+        $subcategoriesCreated = 0;
+        $categoriesUpdated = 0;
+        $subcategoriesUpdated = 0;
+
         foreach ($categories as $categoryData) {
             $subcategories = $categoryData['subcategories'];
             unset($categoryData['subcategories']);
 
-            // Insert category
-            DB::table('categories')->insert($categoryData);
+            // Check if category exists by slug
+            $existingCategory = DB::table('categories')
+                ->where('slug', $categoryData['slug'])
+                ->first();
 
-            // Insert subcategories
+            if ($existingCategory) {
+                // Update existing category
+                DB::table('categories')
+                    ->where('id', $existingCategory->id)
+                    ->update([
+                        'name' => $categoryData['name'],
+                        'description' => $categoryData['description'],
+                        'icon' => $categoryData['icon'],
+                        'color' => $categoryData['color'],
+                        'is_active' => $categoryData['is_active'],
+                        'sort_order' => $categoryData['sort_order'],
+                        'updated_at' => now(),
+                    ]);
+                
+                $categoryId = $existingCategory->id;
+                $categoriesUpdated++;
+                $this->command->info("Updated category: {$categoryData['name']}");
+            } else {
+                // Create new category
+                $categoryId = Str::uuid()->toString();
+                $categoryData['id'] = $categoryId;
+                $categoryData['created_at'] = now();
+                $categoryData['updated_at'] = now();
+                
+                DB::table('categories')->insert($categoryData);
+                $categoriesCreated++;
+                $this->command->info("Created category: {$categoryData['name']}");
+            }
+
+            // Process subcategories
             foreach ($subcategories as $sub) {
-                DB::table('subcategories')->insert([
-                    'id' => Str::uuid()->toString(),
-                    'category_id' => $categoryData['id'],
-                    'name' => $sub['name'],
-                    'slug' => $sub['slug'],
-                    'description' => null,
-                    'icon' => null,
-                    'color' => null,
-                    'is_active' => true,
-                    'sort_order' => $sub['sort_order'],
-                    'metadata' => null,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
+                $existingSubcategory = DB::table('subcategories')
+                    ->where('category_id', $categoryId)
+                    ->where('slug', $sub['slug'])
+                    ->first();
+
+                if ($existingSubcategory) {
+                    // Update existing subcategory
+                    DB::table('subcategories')
+                        ->where('id', $existingSubcategory->id)
+                        ->update([
+                            'name' => $sub['name'],
+                            'sort_order' => $sub['sort_order'],
+                            'is_active' => true,
+                            'updated_at' => now(),
+                        ]);
+                    $subcategoriesUpdated++;
+                } else {
+                    // Create new subcategory
+                    DB::table('subcategories')->insert([
+                        'id' => Str::uuid()->toString(),
+                        'category_id' => $categoryId,
+                        'name' => $sub['name'],
+                        'slug' => $sub['slug'],
+                        'description' => null,
+                        'icon' => null,
+                        'color' => null,
+                        'is_active' => true,
+                        'sort_order' => $sub['sort_order'],
+                        'metadata' => null,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                    $subcategoriesCreated++;
+                }
             }
         }
 
-        $this->command->info('Categories and subcategories seeded successfully!');
+        $this->command->info('');
+        $this->command->info('========================================');
+        $this->command->info('Categories seeded successfully!');
+        $this->command->info("Categories created: $categoriesCreated");
+        $this->command->info("Categories updated: $categoriesUpdated");
+        $this->command->info("Subcategories created: $subcategoriesCreated");
+        $this->command->info("Subcategories updated: $subcategoriesUpdated");
+        $this->command->info('========================================');
     }
 }
