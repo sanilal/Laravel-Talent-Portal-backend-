@@ -89,6 +89,11 @@ class TalentProfile extends Model
         return $this->category();
     }
 
+    public function subcategory(): BelongsTo
+    {
+        return $this->belongsTo(Subcategory::class);
+    }
+
     /**
      * Get all skills for this talent profile
      */
