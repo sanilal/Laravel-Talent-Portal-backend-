@@ -168,6 +168,14 @@ Route::prefix('v1')->group(function () {
         Route::get('/dropdown-list/all', [DropdownController::class, 'all'])
             ->name('dropdown.all');
 
+        /**
+         * GET /api/v1/public/attributes/profile-level
+         * Get available profile-level attribute definitions
+         * Returns field definitions for physical attributes (height, weight, etc.)
+         */
+        Route::get('/attributes/profile-level', [TalentProfileController::class, 'getAvailableAttributes'])
+            ->name('attributes.profile-level');
+
         // ============================================
         // COUNTRIES & STATES
         // ============================================
@@ -325,6 +333,11 @@ Route::prefix('v1')->group(function () {
             Route::post('/profile', [TalentProfileController::class, 'store'])->name('profile.store');
             Route::put('/profile', [TalentProfileController::class, 'update'])->name('profile.update');
             Route::delete('/profile', [TalentProfileController::class, 'destroy'])->name('profile.destroy');
+            
+            // Profile-Level Attributes (Physical Attributes)
+            Route::get('/profile/attributes', [TalentProfileController::class, 'getAttributes'])->name('profile.attributes');
+            Route::put('/profile/attributes', [TalentProfileController::class, 'updateAttributes'])->name('profile.attributes.update');
+            Route::delete('/profile/attributes/{fieldName}', [TalentProfileController::class, 'deleteAttribute'])->name('profile.attributes.delete');
             
             // Skills
             Route::prefix('skills')->name('skills.')->group(function () {
