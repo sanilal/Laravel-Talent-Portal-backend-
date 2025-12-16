@@ -3,25 +3,14 @@
 namespace App\Http\Controllers\Api\Talent;
 
 use App\Http\Controllers\Controller;
-use App\Services\TalentAttributesService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Log;
 
 class TalentProfileController extends Controller
 {
-    protected $attributesService;
-
-    public function __construct()
-    {
-        $this->attributesService = new TalentAttributesService();
-    }
-
     /**
      * Get talent profile
-     * 
-     * UPDATED: Now includes profile_attributes and skill_attributes
      */
     public function show(Request $request)
     {
@@ -54,18 +43,6 @@ class TalentProfileController extends Controller
                 if (isset($skill['pivot']['image_path'])) {
                     $skill['pivot']['image_url'] = asset('storage/' . $skill['pivot']['image_path']);
                 }
-            }
-        }
-
-        // NEW: Add profile-level and skill-level attributes
-        if ($user->talentProfile) {
-            try {
-                $profile['profile_attributes'] = $this->attributesService->getProfileLevelAttributes($user->talentProfile);
-                $profile['skill_attributes'] = $this->attributesService->getSkillLevelAttributes($user->talentProfile);
-            } catch (\Exception $e) {
-                Log::warning('Error loading attributes: ' . $e->getMessage());
-                $profile['profile_attributes'] = [];
-                $profile['skill_attributes'] = [];
             }
         }
 
@@ -324,9 +301,9 @@ class TalentProfileController extends Controller
         $user->profile_completion = $percentage;
         $user->save();
 
-        if ($user->talentProfile) {
-            $user->talentProfile->update(['profile_completion_percentage' => $percentage]);
-        }
+         if ($user->talentProfile) {
+                $user->talentProfile->update(['profile_completion_percentage' => $percentage]);
+            }
 
         return $percentage;
     }
@@ -337,171 +314,5 @@ class TalentProfileController extends Controller
     private function updateProfileCompletion($talentProfile)
     {
         return $this->calculateProfileCompleteness($talentProfile->user);
-    }
-
-    // ========================================================================
-    // NEW METHODS: PROFILE-LEVEL ATTRIBUTES
-    // ========================================================================
-
-    /**
-     * Get profile-level attributes (physical attributes)
-     * 
-     * GET /api/v1/talent/profile/attributes
-     */
-    public function getAttributes(Request $request)
-    {
-        try {
-            $user = $request->user();
-            $profile = $user->talentProfile;
-
-            if (!$profile) {
-                return response()->json([
-                    'message' => 'Profile not found'
-                ], 404);
-            }
-
-            $attributes = $this->attributesService->getProfileLevelAttributes($profile);
-
-            return response()->json([
-                'attributes' => $attributes
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error fetching profile attributes: ' . $e->getMessage());
-            return response()->json([
-                'message' => 'Error fetching attributes',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Update profile-level attributes (physical attributes)
-     * 
-     * PUT /api/v1/talent/profile/attributes
-     * 
-     * Body:
-     * {
-     *   "height": "5_10",
-     *   "weight": "70_74",
-     *   "hair_color": "brown",
-     *   "eye_color": "hazel",
-     *   "chest": "40",
-     *   "waist": "32",
-     *   "hips": "38",
-     *   "shoe_size": "10"
-     * }
-     */
-    public function updateAttributes(Request $request)
-    {
-        try {
-            $user = $request->user();
-            $profile = $user->talentProfile;
-
-            if (!$profile) {
-                return response()->json([
-                    'message' => 'Profile not found'
-                ], 404);
-            }
-
-            // Validate input
-            $validated = $request->validate([
-                'height' => 'nullable|string',
-                'weight' => 'nullable|string',
-                'chest' => 'nullable|numeric',
-                'waist' => 'nullable|numeric',
-                'hips' => 'nullable|numeric',
-                'shoe_size' => 'nullable|numeric',
-                'hair_color' => 'nullable|string',
-                'eye_color' => 'nullable|string',
-                'skin_tone' => 'nullable|string',
-                'body_type' => 'nullable|string',
-            ]);
-
-            // Remove null values
-            $attributes = array_filter($validated, function($value) {
-                return $value !== null;
-            });
-
-            // Update attributes
-            $this->attributesService->setProfileAttributes($profile->id, $attributes);
-
-            // Get updated attributes
-            $updatedAttributes = $this->attributesService->getProfileLevelAttributes($profile);
-
-            return response()->json([
-                'message' => 'Profile attributes updated successfully',
-                'attributes' => $updatedAttributes
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error updating profile attributes: ' . $e->getMessage());
-            return response()->json([
-                'message' => 'Error updating attributes',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Get available profile-level attribute definitions
-     * 
-     * GET /api/v1/public/attributes/profile-level
-     * (Can be public - just definitions, no data)
-     */
-    public function getAvailableAttributes(Request $request)
-    {
-        try {
-            $definitions = $this->attributesService->getProfileLevelAttributeDefinitions();
-
-            return response()->json([
-                'attributes' => $definitions
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error fetching attribute definitions: ' . $e->getMessage());
-            return response()->json([
-                'message' => 'Error fetching attribute definitions',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Delete a specific profile-level attribute
-     * 
-     * DELETE /api/v1/talent/profile/attributes/{fieldName}
-     */
-    public function deleteAttribute(Request $request, $fieldName)
-    {
-        try {
-            $user = $request->user();
-            $profile = $user->talentProfile;
-
-            if (!$profile) {
-                return response()->json([
-                    'message' => 'Profile not found'
-                ], 404);
-            }
-
-            $deleted = $this->attributesService->deleteProfileAttribute($profile->id, $fieldName);
-
-            if (!$deleted) {
-                return response()->json([
-                    'message' => 'Attribute not found'
-                ], 404);
-            }
-
-            return response()->json([
-                'message' => 'Attribute deleted successfully'
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error deleting profile attribute: ' . $e->getMessage());
-            return response()->json([
-                'message' => 'Error deleting attribute',
-                'error' => $e->getMessage()
-            ], 500);
-        }
     }
 }
