@@ -563,7 +563,8 @@ class SubcategoryAttributesSeeder extends Seeder
     {
         $options = [];
         for ($i = 40; $i <= 120; $i += 5) {
-            $options[] = ['label' => "{$i}-" . ($i+4) . " Kg", 'value' => "{$i}_{$i+4}"];
+            $max = $i + 4;
+            $options[] = ['label' => "{$i}-{$max} Kg", 'value' => "{$i}_{$max}"];
         }
         return $options;
     }

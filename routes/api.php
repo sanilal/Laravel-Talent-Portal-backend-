@@ -329,6 +329,9 @@ Route::prefix('v1')->group(function () {
             // Skills
             Route::prefix('skills')->name('skills.')->group(function () {
                 Route::get('/', [TalentSkillsController::class, 'index'])->name('index');
+                // 🆕 ADD THIS LINE - CRITICAL!
+                Route::get('/{skillId}/attributes', [TalentSkillsController::class, 'getSkillAttributes'])
+                    ->name('attributes');
                 Route::post('/', [TalentSkillsController::class, 'store'])->name('store');
                 Route::get('/{id}', [TalentSkillsController::class, 'show'])->name('show');
                 Route::put('/{id}', [TalentSkillsController::class, 'update'])->name('update');
