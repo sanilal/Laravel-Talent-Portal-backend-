@@ -2,6 +2,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\TalentSkillAttribute;
+use App\Models\SubcategoryAttribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Support\Facades\Storage;
@@ -61,6 +63,11 @@ class TalentSkill extends Model
         return $this->belongsTo(Skill::class);
     }
 
+    public function attributes(): HasMany
+    {
+        return $this->hasMany(TalentSkillAttribute::class);
+    }
+
     // Accessors
     public function getImageUrlAttribute(): ?string
     {
@@ -114,5 +121,69 @@ class TalentSkill extends Model
     public function scopeVisible($query)
     {
         return $query->where('show_on_profile', true);
+    }
+
+    /**
+     * Get formatted attributes for display.
+     */
+    public function getFormattedAttributesAttribute(): array
+    {
+        $formatted = [];
+        
+        $this->load(['attributes.attribute']);
+        
+        foreach ($this->attributes as $attr) {
+            if (!$attr->attribute) continue;
+            
+            $formatted[$attr->attribute->field_name] = [
+                'label' => $attr->attribute->field_label,
+                'value' => $attr->parsed_value,
+                'type' => $attr->attribute->field_type,
+                'unit' => $attr->attribute->unit,
+            ];
+        }
+        
+        return $formatted;
+    }
+
+    /**
+     * Get a specific attribute value.
+     */
+    public function getAttributeValue(string $fieldName)
+    {
+        $attribute = $this->attributes()
+            ->whereHas('attribute', function ($query) use ($fieldName) {
+                $query->where('field_name', $fieldName);
+            })
+            ->with('attribute')
+            ->first();
+
+        return $attribute ? $attribute->parsed_value : null;
+    }
+
+    /**
+     * Set a specific attribute value.
+     */
+    public function setAttributeValue(string $fieldName, $value): void
+    {
+        $subcategoryAttribute = SubcategoryAttribute::where('field_name', $fieldName)
+            ->whereHas('subcategory.skills', function ($query) {
+                $query->where('id', $this->skill_id);
+            })
+            ->first();
+
+        if (!$subcategoryAttribute) {
+            throw new \Exception("Attribute '{$fieldName}' not found for this skill");
+        }
+
+        TalentSkillAttribute::updateOrCreate(
+            [
+                'talent_skill_id' => $this->id,
+                'attribute_id' => $subcategoryAttribute->id,
+            ],
+            [
+                'value' => $value,
+            ]
+        );
     }
 }

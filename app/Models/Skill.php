@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Subcategory;
+use App\Models\SubcategoryAttribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -18,6 +20,7 @@ class Skill extends Model
         'name',
         'slug',
         'category_id',
+        'subcategory_id', 
         'description',
         'icon',
         'is_featured',
@@ -46,6 +49,8 @@ class Skill extends Model
         return $this->belongsTo(Category::class);
     }
 
+   
+
     /**
      * Get all talents that have this skill.
      * FIXED: Now uses talent_profile_id instead of talent_id
@@ -67,6 +72,37 @@ class Skill extends Model
                         'show_on_profile',
                     ])
                     ->withTimestamps();
+    }
+
+         /**
+     * Get the subcategory this skill belongs to.
+     */
+    public function subcategory(): BelongsTo
+    {
+        return $this->belongsTo(Subcategory::class);
+    }
+
+    /**
+     * Get the required attributes for this skill's subcategory.
+     */
+    public function getRequiredAttributes()
+    {
+        if (!$this->subcategory_id) {
+            return collect();
+        }
+
+        return SubcategoryAttribute::where('subcategory_id', $this->subcategory_id)
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->get();
+    }
+
+    /**
+     * Scope to filter by subcategory.
+     */
+    public function scopeForSubcategory($query, $subcategoryId)
+    {
+        return $query->where('subcategory_id', $subcategoryId);
     }
 
     /**
