@@ -12,7 +12,8 @@ class TalentSkillAttribute extends Model
     use HasFactory, HasUuids;
 
     protected $fillable = [
-        'talent_skill_id',
+        'talent_skill_id',      // For skill-level attributes
+        'talent_profile_id',    // For profile-level attributes (physical attributes)
         'attribute_id',
         'value',
     ];
@@ -23,10 +24,20 @@ class TalentSkillAttribute extends Model
 
     /**
      * Get the talent skill that owns the attribute value.
+     * (Only for skill-level attributes)
      */
     public function talentSkill(): BelongsTo
     {
         return $this->belongsTo(TalentSkill::class);
+    }
+
+    /**
+     * Get the talent profile that owns the attribute value.
+     * (Only for profile-level attributes like physical attributes)
+     */
+    public function talentProfile(): BelongsTo
+    {
+        return $this->belongsTo(TalentProfile::class);
     }
 
     /**

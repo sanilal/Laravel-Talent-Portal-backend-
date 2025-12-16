@@ -2,6 +2,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use App\Models\TalentSkillAttribute;
 use App\Models\SubcategoryAttribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -147,9 +148,11 @@ class TalentSkill extends Model
     }
 
     /**
-     * Get a specific attribute value.
+     * Get a specific skill attribute value by field name.
+     * 
+     * Note: Renamed from getAttributeValue to avoid conflict with Laravel's Model::getAttributeValue()
      */
-    public function getAttributeValue(string $fieldName)
+    public function getSkillAttributeValue(string $fieldName)
     {
         $attribute = $this->attributes()
             ->whereHas('attribute', function ($query) use ($fieldName) {
@@ -162,9 +165,11 @@ class TalentSkill extends Model
     }
 
     /**
-     * Set a specific attribute value.
+     * Set a specific skill attribute value by field name.
+     * 
+     * Note: Renamed from setAttributeValue to avoid potential conflict with Laravel methods
      */
-    public function setAttributeValue(string $fieldName, $value): void
+    public function setSkillAttributeValue(string $fieldName, $value): void
     {
         $subcategoryAttribute = SubcategoryAttribute::where('field_name', $fieldName)
             ->whereHas('subcategory.skills', function ($query) {

@@ -127,16 +127,6 @@ class TalentProfile extends Model
     }
 
     /**
-     * Get profile-level attributes (physical attributes)
-     * These are attributes attached directly to the profile, not to specific skills
-     */
-    public function profileAttributes(): HasMany
-    {
-        return $this->hasMany(TalentSkillAttribute::class, 'talent_profile_id')
-            ->whereNull('talent_skill_id');
-    }
-
-    /**
      * Increment profile views
      */
     public function incrementViews(): void
