@@ -12,13 +12,17 @@ class EmailVerificationAttempt extends Model
     use HasFactory, HasUuids;
 
     protected $fillable = [
+        'user_id',
         'email',
         'token',
         'ip_address',
         'user_agent',
+        'user_agent',
         'successful',
         'attempted_at',
         'expires_at',
+        'is_used',
+        'verified_at',
     ];
 
     protected $casts = [

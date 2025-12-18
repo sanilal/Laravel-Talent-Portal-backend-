@@ -246,4 +246,125 @@ class ApplicationController extends Controller
             'message' => 'Application withdrawn successfully',
         ]);
     }
+
+    /**
+     * Get all applications for authenticated talent user
+     * GET /api/v1/talent/applications
+     */
+    public function talentApplications(Request $request)
+    {
+        $query = Application::where('talent_id', $request->user()->id)
+            ->with(['project.recruiter', 'project.category', 'project.subcategory']);
+
+        // Filter by status
+        if ($request->has('status')) {
+            $query->where('status', $request->status);
+        }
+
+        $applications = $query->orderByDesc('created_at')->paginate(15);
+
+        return response()->json([
+            'success' => true,
+            'applications' => $applications,
+        ]);
+    }
+
+    /**
+     * Get all applications for projects owned by authenticated recruiter
+     * GET /api/v1/recruiter/applications
+     */
+    public function recruiterApplications(Request $request)
+    {
+        $query = Application::whereHas('project', function($q) use ($request) {
+            $q->where('recruiter_id', $request->user()->id);
+        })->with(['talent.talentProfile', 'project']);
+
+        // Filter by status
+        if ($request->has('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Filter by project
+        if ($request->has('project_id')) {
+            $query->where('project_id', $request->project_id);
+        }
+
+        $applications = $query->orderByDesc('created_at')->paginate(15);
+
+        return response()->json([
+            'success' => true,
+            'applications' => $applications,
+        ]);
+    }
+
+    /**
+     * Apply to a project (for talents)
+     * POST /api/v1/projects/{id}/apply
+     */
+    public function apply(Request $request, $id)
+    {
+        // This is the same as store method, just with different route parameter
+        $validator = Validator::make(array_merge($request->all(), ['project_id' => $id]), [
+            'project_id' => 'required|uuid|exists:projects,id',
+            'cover_letter' => 'required|string|min:100|max:2000',
+            'proposed_rate' => 'nullable|numeric|min:0',
+            'proposed_duration' => 'nullable|integer|min:1',
+            'estimated_start_date' => 'nullable|date|after:today',
+            'attachments' => 'nullable|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        // Check if project exists and is open
+        $project = Project::find($id);
+
+        if (!$project) {
+            return response()->json([
+                'message' => 'Project not found',
+            ], 404);
+        }
+
+        if ($project->status !== 'open') {
+            return response()->json([
+                'message' => 'This project is not accepting applications',
+            ], 400);
+        }
+
+        // Check if user already applied
+        $existingApplication = Application::where('project_id', $id)
+            ->where('talent_id', $request->user()->id)
+            ->first();
+
+        if ($existingApplication) {
+            return response()->json([
+                'message' => 'You have already applied to this project',
+            ], 409);
+        }
+
+        // Create application
+        $application = Application::create(array_merge(
+            $request->only([
+                'cover_letter', 'proposed_rate',
+                'proposed_duration', 'estimated_start_date', 'attachments'
+            ]),
+            [
+                'project_id' => $id,
+                'talent_id' => $request->user()->id,
+                'status' => 'pending',
+            ]
+        ));
+
+        // TODO: Send notification to project owner
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Application submitted successfully',
+            'application' => $application->load('project'),
+        ], 201);
+    }
 }

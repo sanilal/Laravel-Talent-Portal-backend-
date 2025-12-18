@@ -330,7 +330,10 @@ Route::prefix('v1')->group(function () {
         // ============================================
 
         Route::prefix('talent')->name('talent.')->middleware('role:talent')->group(function () {
-            
+
+            // Talent Dashboard
+            Route::get('/dashboard', [TalentProfileController::class, 'dashboard'])->name('dashboard');
+
             // Talent Profile
             Route::get('/profile', [TalentProfileController::class, 'show'])->name('profile.show');
             Route::post('/profile', [TalentProfileController::class, 'store'])->name('profile.store');
