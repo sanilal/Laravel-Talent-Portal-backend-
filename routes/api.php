@@ -290,11 +290,14 @@ Route::prefix('v1')->group(function () {
         
         // Email Verification
         Route::post('/email/verify', [EmailVerificationController::class, 'verify'])
-            ->middleware('auth:sanctum')
-            ->name('email.verify');
+        ->name('email.verify');
+    
         Route::post('/email/resend', [EmailVerificationController::class, 'resend'])
-            ->middleware('auth:sanctum')
             ->name('email.resend');
+        
+        Route::get('/email/status', [EmailVerificationController::class, 'status'])
+            ->name('email.status');
+
         
         // Password Reset
         Route::post('/password/email', [PasswordResetController::class, 'sendResetLink'])->name('password.email');
