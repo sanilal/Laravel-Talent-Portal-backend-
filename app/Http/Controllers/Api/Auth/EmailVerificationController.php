@@ -3,21 +3,37 @@
 namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Models\EmailVerificationAttempt;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\URL;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Validator;
 
 class EmailVerificationController extends Controller
 {
     /**
-     * Send email verification notification
+     * Send OTP to user's email
      */
-    public function send(Request $request)
+    public function resend(Request $request)
     {
-        $user = $request->user();
+        // Can work with authenticated user OR email in request
+        $email = $request->email ?? $request->user()?->email;
 
-        if ($user->hasVerifiedEmail()) {
+        if (!$email) {
+            return response()->json([
+                'message' => 'Email is required'
+            ], 422);
+        }
+
+        $user = User::where('email', $email)->first();
+
+        if (!$user) {
+            return response()->json([
+                'message' => 'User not found'
+            ], 404);
+        }
+
+        if ($user->is_email_verified) {
             return response()->json([
                 'message' => 'Email already verified'
             ], 400);
@@ -30,60 +46,114 @@ class EmailVerificationController extends Controller
 
         if ($recentAttempts >= 6) {
             return response()->json([
-                'message' => 'Too many verification emails sent. Please try again later.'
+                'message' => 'Too many verification attempts. Please try again in 1 hour.',
+                'retry_after' => 3600
             ], 429);
         }
 
-        // Generate verification token
-        $token = Str::random(64);
+        // Generate 6-digit OTP
+        $otp = sprintf('%06d', random_int(0, 999999));
 
-        // Log attempt
-        EmailVerificationAttempt::create([
+        // Store OTP in database
+        $attempt = EmailVerificationAttempt::create([
             'user_id' => $user->id,
             'email' => $user->email,
-            'token' => $token,
+            'token' => $otp, // Using token field for OTP
             'ip_address' => $request->ip(),
-            'expires_at' => now()->addHours(24),
+            'user_agent' => $request->userAgent(),
+            'expires_at' => now()->addMinutes(15), // OTP valid for 15 minutes
             'is_used' => false,
         ]);
 
-        // Send verification email
-        $user->sendEmailVerificationNotification();
+        // Send OTP via email
+        try {
+            Mail::send('emails.verification-otp', ['otp' => $otp, 'user' => $user], function ($message) use ($user) {
+                $message->to($user->email)
+                    ->subject('Verify Your Email - Talents You Need');
+            });
 
-        return response()->json([
-            'message' => 'Verification email sent successfully'
-        ]);
+            return response()->json([
+                'message' => 'Verification code sent successfully to ' . $this->maskEmail($user->email),
+                'expires_in' => 900, // 15 minutes in seconds
+            ]);
+        } catch (\Exception $e) {
+            // Log error but don't expose it to user
+            \Log::error('Failed to send OTP email: ' . $e->getMessage());
+
+            return response()->json([
+                'message' => 'Failed to send verification code. Please try again later.'
+            ], 500);
+        }
     }
 
     /**
-     * Verify email with code or token
+     * Verify OTP
      */
     public function verify(Request $request)
     {
-        $request->validate([
-            'verification_code' => 'required|string|size:6',
+        $validator = Validator::make($request->all(), [
+            'email' => ['required', 'email'],
+            'otp' => ['required', 'string', 'size:6', 'regex:/^[0-9]{6}$/'],
         ]);
 
-        $user = $request->user();
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
 
-        if ($user->hasVerifiedEmail()) {
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return response()->json([
+                'message' => 'User not found'
+            ], 404);
+        }
+
+        if ($user->is_email_verified) {
             return response()->json([
                 'message' => 'Email already verified'
             ], 400);
         }
 
-        // In a real implementation, you'd verify the code against stored verification attempts
-        // For now, we'll use Laravel's built-in email verification
-        $user->markEmailAsVerified();
+        // Find valid OTP attempt
+        $attempt = EmailVerificationAttempt::where('user_id', $user->id)
+            ->where('token', $request->otp)
+            ->where('is_used', false)
+            ->where('expires_at', '>', now())
+            ->first();
 
-        // Update account status
-        $user->update([
-            'account_status' => 'active'
+        if (!$attempt) {
+            return response()->json([
+                'message' => 'Invalid or expired verification code'
+            ], 422);
+        }
+
+        // Mark OTP as used
+        $attempt->update([
+            'is_used' => true,
+            'verified_at' => now(),
         ]);
+
+        // Verify user email
+        $user->update([
+            'email_verified_at' => now(),
+            'is_email_verified' => true,
+            'account_status' => 'active',
+        ]);
+
+        // Create authentication token
+        $token = $user->createToken('auth-token')->plainTextToken;
+
+        // Load relationships
+        $user->load(['talentProfile', 'recruiterProfile', 'country']);
 
         return response()->json([
             'message' => 'Email verified successfully',
-            'user' => $user->fresh()
+            'token' => $token,
+            'token_type' => 'Bearer',
+            'user' => $user,
         ]);
     }
 
@@ -92,12 +162,45 @@ class EmailVerificationController extends Controller
      */
     public function status(Request $request)
     {
-        $user = $request->user();
+        $email = $request->email ?? $request->user()?->email;
+
+        if (!$email) {
+            return response()->json([
+                'message' => 'Email is required'
+            ], 422);
+        }
+
+        $user = User::where('email', $email)->first();
+
+        if (!$user) {
+            return response()->json([
+                'message' => 'User not found'
+            ], 404);
+        }
 
         return response()->json([
-            'email_verified' => $user->hasVerifiedEmail(),
+            'email_verified' => $user->is_email_verified,
             'email_verified_at' => $user->email_verified_at,
             'account_status' => $user->account_status,
         ]);
+    }
+
+    /**
+     * Mask email for security
+     * example@domain.com -> e*****@domain.com
+     */
+    private function maskEmail(string $email): string
+    {
+        $parts = explode('@', $email);
+        if (count($parts) !== 2) {
+            return $email;
+        }
+
+        $name = $parts[0];
+        $domain = $parts[1];
+
+        $maskedName = substr($name, 0, 1) . str_repeat('*', max(strlen($name) - 1, 5));
+
+        return $maskedName . '@' . $domain;
     }
 }
