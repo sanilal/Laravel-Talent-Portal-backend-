@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Support\Facades\Log;
 
 class AuthController extends Controller
 {
@@ -34,6 +35,8 @@ class AuthController extends Controller
             'country_id' => ['nullable', 'exists:countries,id'],
             'gender' => ['nullable', 'in:male,female,other,prefer_not_to_say'],
             'date_of_birth' => ['nullable', 'date', 'before:today'],
+            // ✅ ADDED: Optional category_id for talents
+            'category_id' => ['nullable', 'exists:categories,id'],
         ]);
 
         if ($validator->fails()) {
@@ -62,10 +65,19 @@ class AuthController extends Controller
 
             // Create profile based on user type
             if ($user->user_type === 'talent') {
-                TalentProfile::create([
+                $talentProfileData = [
                     'user_id' => $user->id,
                     'profile_completion_percentage' => 10,
-                ]);
+                ];
+
+                // ✅ ADDED: If category_id is provided, save it in talent profile
+                if ($request->category_id) {
+                    $talentProfileData['primary_category_id'] = $request->category_id;
+                    $talentProfileData['profile_completion_percentage'] = 15; // Slightly higher if category provided
+                }
+
+                TalentProfile::create($talentProfileData);
+                
             } elseif ($user->user_type === 'recruiter') {
                 RecruiterProfile::create([
                     'user_id' => $user->id,
@@ -82,6 +94,9 @@ class AuthController extends Controller
             ], 201);
 
         } catch (\Exception $e) {
+            Log::error('Registration failed: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            
             return response()->json([
                 'message' => 'Registration failed',
                 'error' => $e->getMessage()
@@ -224,6 +239,8 @@ class AuthController extends Controller
             'linkedin_url' => ['sometimes', 'nullable', 'url', 'max:255'],
             'twitter_url' => ['sometimes', 'nullable', 'url', 'max:255'],
             'instagram_url' => ['sometimes', 'nullable', 'url', 'max:255'],
+            'gender' => ['sometimes', 'nullable', 'in:male,female,other,prefer_not_to_say'],
+            'date_of_birth' => ['sometimes', 'nullable', 'date', 'before:today'],
         ]);
 
         if ($validator->fails()) {
@@ -244,6 +261,8 @@ class AuthController extends Controller
                 'linkedin_url',
                 'twitter_url',
                 'instagram_url',
+                'gender',
+                'date_of_birth',
             ]));
 
             return response()->json([
