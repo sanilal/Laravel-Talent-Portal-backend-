@@ -17,20 +17,13 @@ use Illuminate\Support\Str;
 class AuthController extends Controller
 {
     /**
-     * Normalize phone number - SIMPLIFIED VERSION
+     * Normalize phone number using phone country
      * 
-     * Strategy: User MUST provide phone in international format with country code
-     * We just clean the formatting (spaces, dashes, etc.)
-     * 
-     * Why this approach?
-     * - User's residence country ≠ Phone number country
-     * - Someone in UAE might have Indian/UK/US phone number
-     * - Clearest UX: User enters full international number
-     * 
-     * @param string|null $phone - Phone with country code (e.g., "+971 52 723 2144")
-     * @return string|null - Cleaned E.164 format (e.g., "+971527232144")
+     * @param string|null $phone - Local phone number (e.g., "52 723 2144")
+     * @param string|null $phoneCountryId - UUID of phone's country
+     * @return string|null - E.164 format (e.g., "+971527232144")
      */
-    private function normalizePhoneNumber(?string $phone): ?string
+    private function normalizePhoneNumber(?string $phone, ?string $phoneCountryId = null): ?string
     {
         if (!$phone) {
             return null;
@@ -39,13 +32,35 @@ class AuthController extends Controller
         // Remove all spaces, dashes, parentheses, dots
         $phone = preg_replace('/[\s\-\(\)\.]/', '', $phone);
 
-        // If doesn't start with +, user forgot country code - validation will catch this
-        if (!str_starts_with($phone, '+')) {
-            // Just add + prefix and let validation fail if format is wrong
-            return '+' . $phone;
+        // If already has +, just return cleaned version
+        if (str_starts_with($phone, '+')) {
+            return $phone;
         }
 
-        return $phone;
+        // Get dialing code from phone country
+        if ($phoneCountryId) {
+            $country = Country::find($phoneCountryId);
+            
+            if ($country && $country->dialing_code) {
+                $dialingCode = ltrim($country->dialing_code, '+');
+                
+                // If phone starts with 0, replace it with country code
+                if (str_starts_with($phone, '0')) {
+                    return '+' . $dialingCode . substr($phone, 1);
+                }
+                
+                // If phone already starts with country code (without +)
+                if (str_starts_with($phone, $dialingCode)) {
+                    return '+' . $phone;
+                }
+                
+                // Otherwise, just prepend country code
+                return '+' . $dialingCode . $phone;
+            }
+        }
+
+        // Fallback: if no country provided and phone doesn't have +, add it
+        return '+' . $phone;
     }
 
     /**
@@ -53,10 +68,13 @@ class AuthController extends Controller
      */
     public function register(Request $request)
     {
-        // ✅ Normalize phone (just clean formatting)
+        // ✅ Normalize phone using phone_country_id
         if ($request->has('phone') && $request->phone) {
             $request->merge([
-                'phone' => $this->normalizePhoneNumber($request->phone)
+                'phone' => $this->normalizePhoneNumber(
+                    $request->phone,
+                    $request->phone_country_id  // ← Use separate phone country
+                )
             ]);
         }
 
@@ -72,18 +90,24 @@ class AuthController extends Controller
             ],
             'user_type' => ['required', 'in:talent,recruiter'],
             
-            // ✅ Phone MUST be in E.164 format: +[country code][number]
+            // ✅ Phone is optional, but if provided must be valid E.164
             'phone' => [
                 'nullable',
                 'string',
-                'regex:/^\+[1-9]\d{1,14}$/', // Must start with + and have 1-15 digits
+                'regex:/^\+[1-9]\d{1,14}$/',
                 'unique:users'
             ],
+            
+            // ✅ Phone country is optional, but recommended if phone is provided
+            'phone_country_id' => ['nullable', 'exists:countries,id'],
             
             'country_id' => ['nullable', 'exists:countries,id'],
             'gender' => ['nullable', 'in:male,female,other,prefer_not_to_say'],
             'date_of_birth' => ['nullable', 'date', 'before:today'],
             'category_id' => ['nullable', 'exists:categories,id'],
+        ], [
+            'phone.regex' => 'The phone number format is invalid. Please select a country and enter your phone number.',
+            'phone.unique' => 'This phone number is already registered.',
         ]);
 
         if ($validator->fails()) {
@@ -101,7 +125,7 @@ class AuthController extends Controller
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
                 'user_type' => $request->user_type,
-                'phone' => $request->phone, // Already normalized
+                'phone' => $request->phone, // Already normalized with correct country code
                 'country_id' => $request->country_id,
                 'gender' => $request->gender,
                 'date_of_birth' => $request->date_of_birth,
@@ -125,7 +149,6 @@ class AuthController extends Controller
                 TalentProfile::create($talentProfileData);
                 
             } elseif ($user->user_type === 'recruiter') {
-                // ✅ Provide default values for required fields
                 $companyName = 'Company';
                 $companySlug = Str::slug($companyName) . '-' . Str::random(6);
                 
@@ -157,8 +180,6 @@ class AuthController extends Controller
         }
     }
 
-    // ... (rest of the methods remain the same)
-    
     public function login(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -254,10 +275,13 @@ class AuthController extends Controller
     {
         $user = $request->user();
 
-        // ✅ Normalize phone if provided
+        // ✅ Normalize phone with phone_country_id if provided
         if ($request->has('phone') && $request->phone) {
             $request->merge([
-                'phone' => $this->normalizePhoneNumber($request->phone)
+                'phone' => $this->normalizePhoneNumber(
+                    $request->phone,
+                    $request->phone_country_id
+                )
             ]);
         }
 
@@ -271,6 +295,7 @@ class AuthController extends Controller
                 'regex:/^\+[1-9]\d{1,14}$/',
                 'unique:users,phone,' . $user->id
             ],
+            'phone_country_id' => ['sometimes', 'nullable', 'exists:countries,id'],
             'bio' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'location' => ['sometimes', 'nullable', 'string', 'max:255'],
             'website' => ['sometimes', 'nullable', 'url', 'max:255'],
