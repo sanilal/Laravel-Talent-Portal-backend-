@@ -54,6 +54,7 @@ class AuthController extends Controller
 
     /**
      * Register a new user
+     * ✅ DOES NOT AUTO-LOGIN - User must verify email and login manually
      */
     public function register(Request $request)
     {
@@ -117,8 +118,8 @@ class AuthController extends Controller
                 'password' => Hash::make($request->password),
                 'user_type' => $request->user_type,
                 'phone' => $request->phone,
-                'country_id' => $request->country_id,  // ✅ Foreign key
-                'country' => $countryName,             // ✅ Country name (for backward compatibility)
+                'country_id' => $request->country_id,
+                'country' => $countryName,
                 'gender' => $request->gender,
                 'date_of_birth' => $request->date_of_birth,
                 'account_status' => 'pending_verification',
@@ -152,11 +153,17 @@ class AuthController extends Controller
                 ]);
             }
 
-            $user->load(['talentProfile', 'recruiterProfile', 'country']);
-
+            // ✅ CHANGED: Return basic user info without token
+            // User must verify email and login manually
             return response()->json([
                 'message' => 'Registration successful. Please verify your email to continue.',
-                'user' => $user,
+                'user' => [
+                    'id' => $user->id,
+                    'email' => $user->email,
+                    'first_name' => $user->first_name,
+                    'last_name' => $user->last_name,
+                    'user_type' => $user->user_type,
+                ],
                 'requires_verification' => true,
             ], 201);
 
