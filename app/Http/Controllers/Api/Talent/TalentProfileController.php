@@ -73,6 +73,15 @@ class TalentProfileController extends Controller
     }
 
     /**
+ * Create or update talent profile
+ * Handles POST requests from frontend
+ */
+    public function store(Request $request)
+    {
+        return $this->update($request);
+    }
+
+    /**
      * Get talent dashboard stats
      */
     public function dashboard(Request $request)
