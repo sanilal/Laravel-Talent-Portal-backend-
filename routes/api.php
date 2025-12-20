@@ -397,6 +397,7 @@ Route::prefix('v1')->group(function () {
         Route::prefix('recruiter')->name('recruiter.')->middleware('role:recruiter')->group(function () {
             
             // Recruiter Profile
+            Route::get('/dashboard', [RecruiterController::class, 'dashboard'])->name('dashboard');
             Route::get('/profile', [RecruiterController::class, 'showProfile'])->name('profile.show');
             Route::post('/profile', [RecruiterController::class, 'createProfile'])->name('profile.store');
             Route::put('/profile', [RecruiterController::class, 'updateProfile'])->name('profile.update');
