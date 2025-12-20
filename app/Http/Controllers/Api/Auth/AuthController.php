@@ -18,10 +18,6 @@ class AuthController extends Controller
 {
     /**
      * Normalize phone number using phone country
-     * 
-     * @param string|null $phone - Local phone number (e.g., "52 723 2144")
-     * @param string|null $phoneCountryId - UUID of phone's country
-     * @return string|null - E.164 format (e.g., "+971527232144")
      */
     private function normalizePhoneNumber(?string $phone, ?string $phoneCountryId = null): ?string
     {
@@ -29,37 +25,30 @@ class AuthController extends Controller
             return null;
         }
 
-        // Remove all spaces, dashes, parentheses, dots
         $phone = preg_replace('/[\s\-\(\)\.]/', '', $phone);
 
-        // If already has +, just return cleaned version
         if (str_starts_with($phone, '+')) {
             return $phone;
         }
 
-        // Get dialing code from phone country
         if ($phoneCountryId) {
             $country = Country::find($phoneCountryId);
             
             if ($country && $country->dialing_code) {
                 $dialingCode = ltrim($country->dialing_code, '+');
                 
-                // If phone starts with 0, replace it with country code
                 if (str_starts_with($phone, '0')) {
                     return '+' . $dialingCode . substr($phone, 1);
                 }
                 
-                // If phone already starts with country code (without +)
                 if (str_starts_with($phone, $dialingCode)) {
                     return '+' . $phone;
                 }
                 
-                // Otherwise, just prepend country code
                 return '+' . $dialingCode . $phone;
             }
         }
 
-        // Fallback: if no country provided and phone doesn't have +, add it
         return '+' . $phone;
     }
 
@@ -68,17 +57,15 @@ class AuthController extends Controller
      */
     public function register(Request $request)
     {
-        // ✅ Normalize phone using phone_country_id
         if ($request->has('phone') && $request->phone) {
             $request->merge([
                 'phone' => $this->normalizePhoneNumber(
                     $request->phone,
-                    $request->phone_country_id  // ← Use separate phone country
+                    $request->phone_country_id
                 )
             ]);
         }
 
-        // Validation rules
         $validator = Validator::make($request->all(), [
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
@@ -89,18 +76,13 @@ class AuthController extends Controller
                 ->symbols()
             ],
             'user_type' => ['required', 'in:talent,recruiter'],
-            
-            // ✅ Phone is optional, but if provided must be valid E.164
             'phone' => [
                 'nullable',
                 'string',
                 'regex:/^\+[1-9]\d{1,14}$/',
                 'unique:users'
             ],
-            
-            // ✅ Phone country is optional, but recommended if phone is provided
             'phone_country_id' => ['nullable', 'exists:countries,id'],
-            
             'country_id' => ['nullable', 'exists:countries,id'],
             'gender' => ['nullable', 'in:male,female,other,prefer_not_to_say'],
             'date_of_birth' => ['nullable', 'date', 'before:today'],
@@ -118,15 +100,25 @@ class AuthController extends Controller
         }
 
         try {
-            // Create user
+            // ✅ Get country name if country_id is provided
+            $countryName = null;
+            if ($request->country_id) {
+                $country = Country::find($request->country_id);
+                if ($country) {
+                    $countryName = $country->country_name;
+                }
+            }
+
+            // Create user with BOTH country_id and country fields
             $user = User::create([
                 'first_name' => $request->first_name,
                 'last_name' => $request->last_name,
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
                 'user_type' => $request->user_type,
-                'phone' => $request->phone, // Already normalized with correct country code
-                'country_id' => $request->country_id,
+                'phone' => $request->phone,
+                'country_id' => $request->country_id,  // ✅ Foreign key
+                'country' => $countryName,             // ✅ Country name (for backward compatibility)
                 'gender' => $request->gender,
                 'date_of_birth' => $request->date_of_birth,
                 'account_status' => 'pending_verification',
@@ -160,7 +152,6 @@ class AuthController extends Controller
                 ]);
             }
 
-            // Load relationships
             $user->load(['talentProfile', 'recruiterProfile', 'country']);
 
             return response()->json([
@@ -275,7 +266,6 @@ class AuthController extends Controller
     {
         $user = $request->user();
 
-        // ✅ Normalize phone with phone_country_id if provided
         if ($request->has('phone') && $request->phone) {
             $request->merge([
                 'phone' => $this->normalizePhoneNumber(
@@ -296,6 +286,7 @@ class AuthController extends Controller
                 'unique:users,phone,' . $user->id
             ],
             'phone_country_id' => ['sometimes', 'nullable', 'exists:countries,id'],
+            'country_id' => ['sometimes', 'nullable', 'exists:countries,id'],
             'bio' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'location' => ['sometimes', 'nullable', 'string', 'max:255'],
             'website' => ['sometimes', 'nullable', 'url', 'max:255'],
@@ -314,7 +305,7 @@ class AuthController extends Controller
         }
 
         try {
-            $user->update($request->only([
+            $updateData = $request->only([
                 'first_name',
                 'last_name',
                 'phone',
@@ -326,7 +317,18 @@ class AuthController extends Controller
                 'instagram_url',
                 'gender',
                 'date_of_birth',
-            ]));
+            ]);
+
+            // ✅ If country_id is being updated, also update country name
+            if ($request->has('country_id') && $request->country_id) {
+                $country = Country::find($request->country_id);
+                if ($country) {
+                    $updateData['country_id'] = $request->country_id;
+                    $updateData['country'] = $country->country_name;
+                }
+            }
+
+            $user->update($updateData);
 
             return response()->json([
                 'message' => 'Profile updated successfully',
