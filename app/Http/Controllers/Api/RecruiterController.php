@@ -27,33 +27,59 @@ class RecruiterController extends Controller
 
     public function dashboard(Request $request)
     {
-        $user = $request->user();
-        
-        // Get all projects for this recruiter
-        $projects = Project::where('recruiter_id', $user->id)->get();
-        $projectIds = $projects->pluck('id');
-        
-        // Calculate statistics
-        $stats = [
-            // Count of active/published projects
-            'active_projects' => Project::where('recruiter_id', $user->id)
-                ->where('status', 'published')
-                ->count(),
+        try {
+            $user = $request->user();
             
-            // Total applications across all projects
-            'total_applications' => Application::whereIn('project_id', $projectIds)->count(),
+            // Get recruiter profile first
+            $recruiterProfile = $user->recruiterProfile;
             
-            // Pending applications needing review
-            'pending_applications' => Application::whereIn('project_id', $projectIds)
-                ->where('status', 'pending')
-                ->count(),
+            if (!$recruiterProfile) {
+                return response()->json([
+                    'message' => 'Recruiter profile not found',
+                    'active_projects' => 0,
+                    'total_applications' => 0,
+                    'pending_applications' => 0,
+                    'total_views' => 0,
+                ]);
+            }
             
-            // Total project views
-            'total_views' => Project::where('recruiter_id', $user->id)
-                ->sum('views_count') ?? 0,
-        ];
-        
-        return response()->json($stats);
+            // Use recruiter_profile_id instead of recruiter_id
+            $projects = Project::where('recruiter_profile_id', $recruiterProfile->id)->get();
+            $projectIds = $projects->pluck('id');
+            
+            // Calculate statistics
+            $stats = [
+                'active_projects' => Project::where('recruiter_profile_id', $recruiterProfile->id)
+                    ->where('status', 'published')
+                    ->count(),
+                
+                'total_applications' => $projectIds->isNotEmpty() 
+                    ? Application::whereIn('project_id', $projectIds)->count()
+                    : 0,
+                
+                'pending_applications' => $projectIds->isNotEmpty()
+                    ? Application::whereIn('project_id', $projectIds)
+                        ->where('status', 'pending')
+                        ->count()
+                    : 0,
+                
+                'total_views' => Project::where('recruiter_profile_id', $recruiterProfile->id)
+                    ->sum('views_count') ?? 0,
+            ];
+            
+            return response()->json($stats);
+            
+        } catch (\Exception $e) {
+            \Log::error('Recruiter Dashboard Error: ' . $e->getMessage());
+            
+            return response()->json([
+                'message' => 'Failed to load dashboard',
+                'active_projects' => 0,
+                'total_applications' => 0,
+                'pending_applications' => 0,
+                'total_views' => 0,
+            ], 500);
+        }
     }
 
     public function searchTalents(Request $request)
