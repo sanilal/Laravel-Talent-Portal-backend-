@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\DropdownController;
 use App\Http\Controllers\Api\CountryController;
 use App\Http\Controllers\Api\ProjectTypeController;
+use App\Http\Controllers\Api\SkillController;
 use App\Http\Controllers\Api\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -228,6 +229,63 @@ Route::prefix('v1')->group(function () {
          */
         Route::get('/project-types/{id}', [ProjectTypeController::class, 'show'])
             ->name('project-types.show');
+
+        // ============================================
+        // SKILLS
+        // ============================================
+        
+        /**
+         * GET /api/v1/public/skills
+         * Get all active skills for public access
+         * Used by recruiters (creating projects) and talents (browsing available skills)
+         * 
+         * Query Parameters:
+         * - category_id: Filter by category UUID
+         * - subcategory_id: Filter by subcategory UUID
+         * - search: Search by name or description
+         * - featured: Filter featured skills (true/false)
+         * - sort_by: name, popular, usage (default: name)
+         * - sort_order: asc, desc (default: asc)
+         * - paginate: Enable pagination (default: false)
+         * - per_page: Items per page (default: 50)
+         */
+        Route::get('/skills', [SkillController::class, 'index'])
+            ->name('skills.index');
+
+        /**
+         * GET /api/v1/public/skills/by-category
+         * Get skills grouped by category
+         */
+        Route::get('/skills/by-category', [SkillController::class, 'byCategory'])
+            ->name('skills.by-category');
+
+        /**
+         * GET /api/v1/public/skills/search?q=keyword
+         * Search skills by name or description
+         */
+        Route::get('/skills/search', [SkillController::class, 'search'])
+            ->name('skills.search');
+
+        /**
+         * GET /api/v1/public/skills/featured
+         * Get featured/popular skills
+         */
+        Route::get('/skills/featured', [SkillController::class, 'featured'])
+            ->name('skills.featured');
+
+        /**
+         * GET /api/v1/public/skills/stats
+         * Get skill statistics
+         */
+        Route::get('/skills/stats', [SkillController::class, 'stats'])
+            ->name('skills.stats');
+
+        /**
+         * GET /api/v1/public/skills/{id}
+         * Get a single skill by ID
+         */
+        Route::get('/skills/{id}', [SkillController::class, 'show'])
+            ->name('skills.show');
 
         // ============================================
         // TALENT PROFILES (Public Listing)
