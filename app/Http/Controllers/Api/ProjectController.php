@@ -149,10 +149,8 @@ class ProjectController extends Controller
                 'applications_count' => 0,
             ]);
 
-            // Attach skills if provided
-            if ($request->has('skills_required') && is_array($request->skills_required)) {
-                $project->skills()->attach($request->skills_required);
-            }
+            // ✅ Skills are already stored as JSON in skills_required column (line 137)
+            // No need for pivot table attachment
 
             DB::commit();
 
