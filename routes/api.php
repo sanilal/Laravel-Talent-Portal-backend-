@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\DropdownController;
 use App\Http\Controllers\Api\CountryController;
 use App\Http\Controllers\Api\ProjectTypeController;
+use App\Http\Controllers\Api\SkillController;
 use App\Http\Controllers\Api\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -168,6 +169,14 @@ Route::prefix('v1')->group(function () {
         Route::get('/dropdown-list/all', [DropdownController::class, 'all'])
             ->name('dropdown.all');
 
+        /**
+         * GET /api/v1/public/attributes/profile-level
+         * Get available profile-level attribute definitions
+         * Returns field definitions for physical attributes (height, weight, etc.)
+         */
+        Route::get('/attributes/profile-level', [TalentProfileController::class, 'getAvailableAttributes'])
+            ->name('attributes.profile-level');
+
         // ============================================
         // COUNTRIES & STATES
         // ============================================
@@ -220,6 +229,63 @@ Route::prefix('v1')->group(function () {
          */
         Route::get('/project-types/{id}', [ProjectTypeController::class, 'show'])
             ->name('project-types.show');
+
+        // ============================================
+        // SKILLS
+        // ============================================
+        
+        /**
+         * GET /api/v1/public/skills
+         * Get all active skills for public access
+         * Used by recruiters (creating projects) and talents (browsing available skills)
+         * 
+         * Query Parameters:
+         * - category_id: Filter by category UUID
+         * - subcategory_id: Filter by subcategory UUID
+         * - search: Search by name or description
+         * - featured: Filter featured skills (true/false)
+         * - sort_by: name, popular, usage (default: name)
+         * - sort_order: asc, desc (default: asc)
+         * - paginate: Enable pagination (default: false)
+         * - per_page: Items per page (default: 50)
+         */
+        Route::get('/skills', [SkillController::class, 'index'])
+            ->name('skills.index');
+
+        /**
+         * GET /api/v1/public/skills/by-category
+         * Get skills grouped by category
+         */
+        Route::get('/skills/by-category', [SkillController::class, 'byCategory'])
+            ->name('skills.by-category');
+
+        /**
+         * GET /api/v1/public/skills/search?q=keyword
+         * Search skills by name or description
+         */
+        Route::get('/skills/search', [SkillController::class, 'search'])
+            ->name('skills.search');
+
+        /**
+         * GET /api/v1/public/skills/featured
+         * Get featured/popular skills
+         */
+        Route::get('/skills/featured', [SkillController::class, 'featured'])
+            ->name('skills.featured');
+
+        /**
+         * GET /api/v1/public/skills/stats
+         * Get skill statistics
+         */
+        Route::get('/skills/stats', [SkillController::class, 'stats'])
+            ->name('skills.stats');
+
+        /**
+         * GET /api/v1/public/skills/{id}
+         * Get a single skill by ID
+         */
+        Route::get('/skills/{id}', [SkillController::class, 'show'])
+            ->name('skills.show');
 
         // ============================================
         // TALENT PROFILES (Public Listing)
@@ -282,11 +348,14 @@ Route::prefix('v1')->group(function () {
         
         // Email Verification
         Route::post('/email/verify', [EmailVerificationController::class, 'verify'])
-            ->middleware('auth:sanctum')
-            ->name('email.verify');
+        ->name('email.verify');
+    
         Route::post('/email/resend', [EmailVerificationController::class, 'resend'])
-            ->middleware('auth:sanctum')
             ->name('email.resend');
+        
+        Route::get('/email/status', [EmailVerificationController::class, 'status'])
+            ->name('email.status');
+
         
         // Password Reset
         Route::post('/password/email', [PasswordResetController::class, 'sendResetLink'])->name('password.email');
@@ -319,12 +388,20 @@ Route::prefix('v1')->group(function () {
         // ============================================
 
         Route::prefix('talent')->name('talent.')->middleware('role:talent')->group(function () {
-            
+
+            // Talent Dashboard
+            Route::get('/dashboard', [TalentProfileController::class, 'dashboard'])->name('dashboard');
+
             // Talent Profile
             Route::get('/profile', [TalentProfileController::class, 'show'])->name('profile.show');
             Route::post('/profile', [TalentProfileController::class, 'store'])->name('profile.store');
             Route::put('/profile', [TalentProfileController::class, 'update'])->name('profile.update');
             Route::delete('/profile', [TalentProfileController::class, 'destroy'])->name('profile.destroy');
+            
+            // Profile-Level Attributes (Physical Attributes)
+            Route::get('/profile/attributes', [TalentProfileController::class, 'getAttributes'])->name('profile.attributes');
+            Route::put('/profile/attributes', [TalentProfileController::class, 'updateAttributes'])->name('profile.attributes.update');
+            Route::delete('/profile/attributes/{fieldName}', [TalentProfileController::class, 'deleteAttribute'])->name('profile.attributes.delete');
             
             // Skills
             Route::prefix('skills')->name('skills.')->group(function () {
@@ -378,6 +455,7 @@ Route::prefix('v1')->group(function () {
         Route::prefix('recruiter')->name('recruiter.')->middleware('role:recruiter')->group(function () {
             
             // Recruiter Profile
+            Route::get('/dashboard', [RecruiterController::class, 'dashboard'])->name('dashboard');
             Route::get('/profile', [RecruiterController::class, 'showProfile'])->name('profile.show');
             Route::post('/profile', [RecruiterController::class, 'createProfile'])->name('profile.store');
             Route::put('/profile', [RecruiterController::class, 'updateProfile'])->name('profile.update');

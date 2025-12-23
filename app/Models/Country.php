@@ -33,6 +33,33 @@ class Country extends Model
     ];
 
     /**
+     * Append camelCase attributes for API responses
+     * This ensures both snake_case and camelCase are available
+     */
+    protected $appends = [
+        'countryName',
+        'countryCode',
+    ];
+
+    /**
+     * Get country name in camelCase (for API compatibility)
+     * Maps database column 'country_name' to 'countryName'
+     */
+    public function getCountryNameAttribute()
+    {
+        return $this->attributes['country_name'] ?? null;
+    }
+
+    /**
+     * Get country code in camelCase (for API compatibility)
+     * Maps database column 'country_code' to 'countryCode'
+     */
+    public function getCountryCodeAttribute()
+    {
+        return $this->attributes['country_code'] ?? null;
+    }
+
+    /**
      * Get the states for the country.
      */
     public function states(): HasMany

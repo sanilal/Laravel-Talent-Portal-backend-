@@ -4,35 +4,93 @@ namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\TalentProfile;
+use App\Models\RecruiterProfile;
+use App\Models\Country;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\Password;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
     /**
-     * Register a new user (Talent or Recruiter)
+     * Normalize phone number using phone country
+     */
+    private function normalizePhoneNumber(?string $phone, ?string $phoneCountryId = null): ?string
+    {
+        if (!$phone) {
+            return null;
+        }
+
+        $phone = preg_replace('/[\s\-\(\)\.]/', '', $phone);
+
+        if (str_starts_with($phone, '+')) {
+            return $phone;
+        }
+
+        if ($phoneCountryId) {
+            $country = Country::find($phoneCountryId);
+            
+            if ($country && $country->dialing_code) {
+                $dialingCode = ltrim($country->dialing_code, '+');
+                
+                if (str_starts_with($phone, '0')) {
+                    return '+' . $dialingCode . substr($phone, 1);
+                }
+                
+                if (str_starts_with($phone, $dialingCode)) {
+                    return '+' . $phone;
+                }
+                
+                return '+' . $dialingCode . $phone;
+            }
+        }
+
+        return '+' . $phone;
+    }
+
+    /**
+     * Register a new user
+     * ✅ DOES NOT AUTO-LOGIN - User must verify email and login manually
      */
     public function register(Request $request)
     {
+        if ($request->has('phone') && $request->phone) {
+            $request->merge([
+                'phone' => $this->normalizePhoneNumber(
+                    $request->phone,
+                    $request->phone_country_id
+                )
+            ]);
+        }
+
         $validator = Validator::make($request->all(), [
-            'first_name' => 'required|string|max:255',
-            'last_name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => ['required', 'confirmed', Password::min(8)
                 ->mixedCase()
                 ->numbers()
-                ->symbols()],
-            'user_type' => 'required|in:talent,recruiter',
-            'phone' => 'nullable|string|max:20',
-
-            // Conditional validation based on role
-            'company_name' => 'required_if:user_type,recruiter|string|max:255',
-            // 'category_id' => 'required_if:user_type,talent|uuid|exists:categories,id',
-            'category_id' => 'required_if:user_type,talent|exists:categories,id',
-
+                ->symbols()
+            ],
+            'user_type' => ['required', 'in:talent,recruiter'],
+            'phone' => [
+                'nullable',
+                'string',
+                'regex:/^\+[1-9]\d{1,14}$/',
+                'unique:users'
+            ],
+            'phone_country_id' => ['nullable', 'exists:countries,id'],
+            'country_id' => ['nullable', 'exists:countries,id'],
+            'gender' => ['nullable', 'in:male,female,other,prefer_not_to_say'],
+            'date_of_birth' => ['nullable', 'date', 'before:today'],
+            'category_id' => ['nullable', 'exists:categories,id'],
+        ], [
+            'phone.regex' => 'The phone number format is invalid. Please select a country and enter your phone number.',
+            'phone.unique' => 'This phone number is already registered.',
         ]);
 
         if ($validator->fails()) {
@@ -43,66 +101,75 @@ class AuthController extends Controller
         }
 
         try {
-            \DB::beginTransaction();
+            // ✅ Get country name if country_id is provided
+            $countryName = null;
+            if ($request->country_id) {
+                $country = Country::find($request->country_id);
+                if ($country) {
+                    $countryName = $country->country_name;
+                }
+            }
 
-            // Create user
+            // Create user with BOTH country_id and country fields
             $user = User::create([
                 'first_name' => $request->first_name,
                 'last_name' => $request->last_name,
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
-                'user_type' => $request->user_type, 
+                'user_type' => $request->user_type,
                 'phone' => $request->phone,
+                'country_id' => $request->country_id,
+                'country' => $countryName,
+                'gender' => $request->gender,
+                'date_of_birth' => $request->date_of_birth,
                 'account_status' => 'pending_verification',
+                'is_email_verified' => false,
+                'is_verified' => false,
             ]);
 
-            // Create role-specific profile
-            if ($request->user_type === 'talent') {
-                $user->talentProfile()->create([
-                    'primary_category_id' => $request->category_id,
-                    'is_available' => true,
-                    'is_public' => false, // Private until profile is completed
-                    'profile_completion_percentage' => 10, // Basic info completed
-                ]);
-            } elseif ($request->user_type  === 'recruiter') {
-                $user->recruiterProfile()->create([
-                    'company_name' => $request->company_name,
-                    'is_verified' => false,
+            // Create profile based on user type
+            if ($user->user_type === 'talent') {
+                $talentProfileData = [
+                    'user_id' => $user->id,
+                    'profile_completion_percentage' => 10,
+                ];
+
+                if ($request->category_id) {
+                    $talentProfileData['primary_category_id'] = $request->category_id;
+                    $talentProfileData['profile_completion_percentage'] = 15;
+                }
+
+                TalentProfile::create($talentProfileData);
+                
+            } elseif ($user->user_type === 'recruiter') {
+                $companyName = 'Company';
+                $companySlug = Str::slug($companyName) . '-' . Str::random(6);
+                
+                RecruiterProfile::create([
+                    'user_id' => $user->id,
+                    'company_name' => $companyName,
+                    'company_slug' => $companySlug,
+                    'profile_completion_percentage' => 0,
                 ]);
             }
 
-            \DB::commit();
-
-            // Generate email verification code
-            $verificationCode = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-            
-            // Store verification code (you can use cache or database)
-            \Cache::put(
-                'email_verification_' . $user->id,
-                $verificationCode,
-                now()->addMinutes(15)
-            );
-
-            // TODO: Send verification email with $verificationCode
-            // Mail::to($user->email)->send(new VerificationEmail($verificationCode));
-
-            // Create auth token
-            $token = $user->createToken('auth-token', [$request->user_type])->plainTextToken;
-
-            // Load profile relationship
-            $profileRelation = $request->user_type . 'Profile';
-            $user->load($profileRelation);
-
+            // ✅ CHANGED: Return basic user info without token
+            // User must verify email and login manually
             return response()->json([
-                'message' => 'Registration successful. Please verify your email.',
-                'user' => $user,
-                'token' => $token,
-                'token_type' => 'Bearer',
-                'verification_required' => true,
+                'message' => 'Registration successful. Please verify your email to continue.',
+                'user' => [
+                    'id' => $user->id,
+                    'email' => $user->email,
+                    'first_name' => $user->first_name,
+                    'last_name' => $user->last_name,
+                    'user_type' => $user->user_type,
+                ],
+                'requires_verification' => true,
             ], 201);
 
         } catch (\Exception $e) {
-            \DB::rollBack();
+            Log::error('Registration failed: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
             
             return response()->json([
                 'message' => 'Registration failed',
@@ -111,401 +178,11 @@ class AuthController extends Controller
         }
     }
 
-    /**
-     * Login user and return token
-     */
- 
     public function login(Request $request)
     {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
-            'device_name' => 'nullable|string',
-        ]);
-
-        $user = User::where('email', $request->email)->first();
-
-        if (!$user || !Hash::check($request->password, $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => ['The provided credentials are incorrect.'],
-            ]);
-        }
-
-        // Check account status
-        if ($user->account_status === 'suspended') {
-            return response()->json([
-                'message' => 'Your account has been suspended. Please contact support.'
-            ], 403);
-        }
-
-        if ($user->account_status === 'banned') {
-            return response()->json([
-                'message' => 'This account has been banned.'
-            ], 403);
-        }
-
-        // Check if 2FA is enabled
-        if ($user->two_factor_enabled) {
-            // Create temporary token for 2FA verification
-            $tempToken = $user->createToken('2fa-temp', ['2fa:pending'])->plainTextToken;
-
-            return response()->json([
-                'message' => '2FA verification required',
-                'requires_2fa' => true,
-                'temp_token' => $tempToken,
-            ]);
-        }
-
-        // Update last login
-        $user->update([
-            'last_login_at' => now(),
-            'last_login_ip' => $request->ip(),
-        ]);
-
-        // Create token with role-based abilities
-      //  $deviceName = $request->device_name ?? $request->userAgent();
-        $deviceName = $request->device_name ?? $request->userAgent() ?? 'Unknown Device';
-        $token = $user->createToken($deviceName, [$user->user_type])->plainTextToken;
-
-        // Load the correct profile relationship
-        $profileRelation = $user->user_type . 'Profile';
-        $user->load($profileRelation);
-
-        return response()->json([
-            'message' => 'Login successful',
-            'user' => $user,
-            'token' => $token,
-            'token_type' => 'Bearer',
-            'requires_verification' => $user->account_status === 'pending_verification',
-        ]);
-    }
-
-    /**
-     * Verify two-factor authentication code
-     */
-    /**
- * Verify two-factor authentication code
- */
-    public function verifyTwoFactor(Request $request)
-    {
-        $request->validate([
-            'code' => 'required|string|size:6',
-        ]);
-
-        $user = $request->user();
-
-        // Verify the 2FA code using Google2FA
-        $google2fa = app('pragmarx.google2fa');
-        $valid = $google2fa->verifyKey($user->two_factor_secret, $request->code);
-
-        if (!$valid) {
-            return response()->json([
-                'message' => 'Invalid verification code'
-            ], 401);
-        }
-
-        // Delete temporary token and create full access token
-        $request->user()->currentAccessToken()->delete();
-
-        // Update last login
-        $user->update([
-            'last_login_at' => now(),
-            'last_login_ip' => $request->ip(),
-        ]);
-
-        // Create new token with full abilities
-        $token = $user->createToken('auth-token', [$user->user_type])->plainTextToken;
-
-        // Load profile
-        $profileRelation = $user->user_type . 'Profile';
-        $user->load($profileRelation);
-
-        return response()->json([
-            'message' => '2FA verification successful',
-            'user' => $user,
-            'token' => $token,
-            'token_type' => 'Bearer',
-        ]);
-    }
-
-    /**
-     * Get authenticated user details
-     */
-
-    public function me(Request $request)
-    {
-        $profileRelation = $request->user()->user_type . 'Profile';
-        
-        $user = $request->user()->load([
-            $profileRelation
-        ]);
-
-        return response()->json([
-            'user' => $user,
-        ]);
-    }
-
-    /**
-     * Logout user (revoke current token)
-     */
-    public function logout(Request $request)
-    {
-        $request->user()->currentAccessToken()->delete();
-
-        return response()->json([
-            'message' => 'Logged out successfully'
-        ]);
-    }
-
-    /**
-     * Logout from all devices (revoke all tokens)
-     */
-    public function logoutAllDevices(Request $request)
-    {
-        $request->user()->tokens()->delete();
-
-        return response()->json([
-            'message' => 'Logged out from all devices'
-        ]);
-    }
-
-    /**
-     * Refresh token (create new token, revoke old)
-     */
-    public function refreshToken(Request $request)
-    {
-        $user = $request->user();
-        $oldToken = $request->user()->currentAccessToken();
-        
-        // Create new token
-        $newToken = $user->createToken(
-            $oldToken->name,
-            $oldToken->abilities
-        )->plainTextToken;
-
-        // Revoke old token
-        $oldToken->delete();
-
-        return response()->json([
-            'token' => $newToken,
-            'token_type' => 'Bearer',
-        ]);
-    }
-
-    /**
-     * Get all active sessions
-     */
-    public function sessions(Request $request)
-    {
-        $tokens = $request->user()->tokens()->get()->map(function ($token) use ($request) {
-            return [
-                'id' => $token->id,
-                'name' => $token->name,
-                'abilities' => $token->abilities,
-                'last_used_at' => $token->last_used_at,
-                'created_at' => $token->created_at,
-                'is_current' => $token->id === $request->user()->currentAccessToken()->id,
-            ];
-        });
-
-        return response()->json([
-            'sessions' => $tokens
-        ]);
-    }
-
-    /**
-     * Revoke a specific session/token
-     */
-    public function revokeSession(Request $request, $tokenId)
-    {
-        $token = $request->user()->tokens()->find($tokenId);
-
-        if (!$token) {
-            return response()->json([
-                'message' => 'Session not found'
-            ], 404);
-        }
-
-        // Prevent revoking current session
-        if ($token->id === $request->user()->currentAccessToken()->id) {
-            return response()->json([
-                'message' => 'Cannot revoke current session. Use logout instead.'
-            ], 400);
-        }
-
-        $token->delete();
-
-        return response()->json([
-            'message' => 'Session revoked successfully'
-        ]);
-    }
-
-    /**
-     * Setup two-factor authentication
-     */
-    public function setupTwoFactor(Request $request)
-    {
-        $user = $request->user();
-
-        // Generate secret key
-        $google2fa = app('pragmarx.google2fa');
-        $secret = $google2fa->generateSecretKey();
-
-        // Store secret temporarily (not enabled yet)
-        $user->update([
-            'two_factor_secret' => encrypt($secret),
-        ]);
-
-        // Generate QR code
-        $qrCodeUrl = $google2fa->getQRCodeUrl(
-            config('app.name'),
-            $user->email,
-            $secret
-        );
-
-        return response()->json([
-            'message' => '2FA setup initiated',
-            'secret' => $secret,
-            'qr_code_url' => $qrCodeUrl,
-        ]);
-    }
-
-    /**
-     * Confirm and enable two-factor authentication
-     */
-    public function confirmTwoFactor(Request $request)
-    {
-        $request->validate([
-            'code' => 'required|string|size:6',
-        ]);
-
-        $user = $request->user();
-
-        if (!$user->two_factor_secret) {
-            return response()->json([
-                'message' => '2FA setup not initiated. Call setup endpoint first.'
-            ], 400);
-        }
-
-        // Verify the code
-        $google2fa = app('pragmarx.google2fa');
-        $secret = decrypt($user->two_factor_secret);
-        $valid = $google2fa->verifyKey($secret, $request->code);
-
-        if (!$valid) {
-            return response()->json([
-                'message' => 'Invalid verification code'
-            ], 401);
-        }
-
-        // Enable 2FA
-        $user->update([
-            'two_factor_enabled' => true,
-        ]);
-
-        // Generate recovery codes
-        $recoveryCodes = collect(range(1, 8))->map(function () {
-            return strtoupper(substr(md5(random_bytes(10)), 0, 8));
-        });
-
-        $user->update([
-            'two_factor_recovery_codes' => encrypt($recoveryCodes->toJson()),
-        ]);
-
-        return response()->json([
-            'message' => '2FA enabled successfully',
-            'recovery_codes' => $recoveryCodes,
-        ]);
-    }
-
-    /**
-     * Disable two-factor authentication
-     */
-    public function disableTwoFactor(Request $request)
-    {
-        $request->validate([
-            'password' => 'required',
-        ]);
-
-        $user = $request->user();
-
-        if (!Hash::check($request->password, $user->password)) {
-            return response()->json([
-                'message' => 'Incorrect password'
-            ], 401);
-        }
-
-        $user->update([
-            'two_factor_enabled' => false,
-            'two_factor_secret' => null,
-            'two_factor_recovery_codes' => null,
-        ]);
-
-        return response()->json([
-            'message' => '2FA disabled successfully'
-        ]);
-    }
-
-    /**
-     * Get two-factor recovery codes
-     */
-    public function getRecoveryCodes(Request $request)
-    {
-        $user = $request->user();
-
-        if (!$user->two_factor_enabled) {
-            return response()->json([
-                'message' => '2FA is not enabled'
-            ], 400);
-        }
-
-        $recoveryCodes = json_decode(decrypt($user->two_factor_recovery_codes));
-
-        return response()->json([
-            'recovery_codes' => $recoveryCodes
-        ]);
-    }
-
-    /**
-     * Regenerate two-factor recovery codes
-     */
-    public function regenerateRecoveryCodes(Request $request)
-    {
-        $user = $request->user();
-
-        if (!$user->two_factor_enabled) {
-            return response()->json([
-                'message' => '2FA is not enabled'
-            ], 400);
-        }
-
-        // Generate new recovery codes
-        $recoveryCodes = collect(range(1, 8))->map(function () {
-            return strtoupper(substr(md5(random_bytes(10)), 0, 8));
-        });
-
-        $user->update([
-            'two_factor_recovery_codes' => encrypt($recoveryCodes->toJson()),
-        ]);
-
-        return response()->json([
-            'message' => 'Recovery codes regenerated successfully',
-            'recovery_codes' => $recoveryCodes,
-        ]);
-    }
-
-    /**
-     * Update user profile
-     */
-    public function updateProfile(Request $request)
-    {
-        $user = $request->user();
-
         $validator = Validator::make($request->all(), [
-            'first_name' => 'sometimes|string|max:255',
-            'last_name' => 'sometimes|string|max:255',
-            'phone' => 'sometimes|nullable|string|max:20',
-            'bio' => 'sometimes|nullable|string|max:1000',
+            'email' => ['required', 'email'],
+            'password' => ['required'],
         ]);
 
         if ($validator->fails()) {
@@ -515,28 +192,172 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $user->update($request->only(['first_name', 'last_name', 'phone', 'bio']));
+        $user = User::where('email', $request->email)->first();
 
-        // Load profile
-        $profileRelation = $user->user_type . 'Profile';
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            return response()->json([
+                'message' => 'Invalid credentials'
+            ], 401);
+        }
+
+        if (!$user->is_email_verified) {
+            return response()->json([
+                'message' => 'Email not verified. Please verify your email to continue.',
+                'requires_verification' => true,
+                'email' => $user->email,
+                'user_id' => $user->id,
+            ], 403);
+        }
+
+        if ($user->account_status === 'suspended') {
+            return response()->json([
+                'message' => 'Your account has been suspended. Please contact support.'
+            ], 403);
+        }
+
+        if ($user->account_status === 'banned') {
+            return response()->json([
+                'message' => 'Your account has been banned. Please contact support.'
+            ], 403);
+        }
+
+        $user->update([
+            'last_login_at' => now(),
+            'last_login_ip' => $request->ip(),
+        ]);
+
+        $token = $user->createToken('auth-token')->plainTextToken;
+        $user->load(['talentProfile', 'recruiterProfile', 'country']);
 
         return response()->json([
-            'message' => 'Profile updated successfully',
-            'user' => $user->fresh()->load($profileRelation)
+            'message' => 'Login successful',
+            'token' => $token,
+            'token_type' => 'Bearer',
+            'user' => $user,
         ]);
     }
 
-    /**
-     * Change password
-     */
+    public function logout(Request $request)
+    {
+        try {
+            $request->user()->currentAccessToken()->delete();
+            return response()->json(['message' => 'Logged out successfully']);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Logout failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function user(Request $request)
+    {
+        try {
+            $user = $request->user();
+            
+            if (!$user) {
+                return response()->json(['message' => 'Unauthenticated'], 401);
+            }
+
+            $user->load(['talentProfile', 'recruiterProfile', 'country']);
+            return response()->json(['user' => $user]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to fetch user',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+
+        if ($request->has('phone') && $request->phone) {
+            $request->merge([
+                'phone' => $this->normalizePhoneNumber(
+                    $request->phone,
+                    $request->phone_country_id
+                )
+            ]);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'first_name' => ['sometimes', 'string', 'max:255'],
+            'last_name' => ['sometimes', 'string', 'max:255'],
+            'phone' => [
+                'sometimes',
+                'nullable',
+                'string',
+                'regex:/^\+[1-9]\d{1,14}$/',
+                'unique:users,phone,' . $user->id
+            ],
+            'phone_country_id' => ['sometimes', 'nullable', 'exists:countries,id'],
+            'country_id' => ['sometimes', 'nullable', 'exists:countries,id'],
+            'bio' => ['sometimes', 'nullable', 'string', 'max:1000'],
+            'location' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'website' => ['sometimes', 'nullable', 'url', 'max:255'],
+            'linkedin_url' => ['sometimes', 'nullable', 'url', 'max:255'],
+            'twitter_url' => ['sometimes', 'nullable', 'url', 'max:255'],
+            'instagram_url' => ['sometimes', 'nullable', 'url', 'max:255'],
+            'gender' => ['sometimes', 'nullable', 'in:male,female,other,prefer_not_to_say'],
+            'date_of_birth' => ['sometimes', 'nullable', 'date', 'before:today'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            $updateData = $request->only([
+                'first_name',
+                'last_name',
+                'phone',
+                'bio',
+                'location',
+                'website',
+                'linkedin_url',
+                'twitter_url',
+                'instagram_url',
+                'gender',
+                'date_of_birth',
+            ]);
+
+            // ✅ If country_id is being updated, also update country name
+            if ($request->has('country_id') && $request->country_id) {
+                $country = Country::find($request->country_id);
+                if ($country) {
+                    $updateData['country_id'] = $request->country_id;
+                    $updateData['country'] = $country->country_name;
+                }
+            }
+
+            $user->update($updateData);
+
+            return response()->json([
+                'message' => 'Profile updated successfully',
+                'user' => $user->fresh(['talentProfile', 'recruiterProfile'])
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Profile update failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function changePassword(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'current_password' => 'required',
+            'current_password' => ['required'],
             'password' => ['required', 'confirmed', Password::min(8)
                 ->mixedCase()
                 ->numbers()
-                ->symbols()],
+                ->symbols()
+            ],
         ]);
 
         if ($validator->fails()) {
@@ -551,51 +372,17 @@ class AuthController extends Controller
         if (!Hash::check($request->current_password, $user->password)) {
             return response()->json([
                 'message' => 'Current password is incorrect'
-            ], 400);
+            ], 422);
         }
 
-        $user->update([
-            'password' => Hash::make($request->password)
-        ]);
-
-        // Optionally revoke all other tokens for security
-        if ($request->logout_other_devices) {
-            $user->tokens()->where('id', '!=', $user->currentAccessToken()->id)->delete();
-        }
-
-        return response()->json([
-            'message' => 'Password changed successfully'
-        ]);
-    }
-
-    /**
- * Resend verification email
- */
-    public function resendVerification(Request $request)
-    {
-        $user = $request->user();
-        
-        if ($user->account_status === 'active') {
+        try {
+            $user->update(['password' => Hash::make($request->password)]);
+            return response()->json(['message' => 'Password changed successfully']);
+        } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Email already verified'
-            ], 400);
+                'message' => 'Password change failed',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        // Generate new verification code
-        $verificationCode = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-        
-        // Store verification code
-        \Cache::put(
-            'email_verification_' . $user->id,
-            $verificationCode,
-            now()->addMinutes(15)
-        );
-
-        // TODO: Send verification email
-        // Mail::to($user->email)->send(new VerificationEmail($verificationCode));
-
-        return response()->json([
-            'message' => 'Verification email sent successfully'
-        ]);
     }
 }

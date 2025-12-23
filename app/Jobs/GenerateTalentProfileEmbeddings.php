@@ -35,7 +35,10 @@ class GenerateTalentProfileEmbeddings implements ShouldQueue
      */
     public function __construct(
         public TalentProfile $profile
-    ) {}
+    ) {
+        // Set the queue this job should be sent to
+        $this->onQueue('embeddings');
+    }
 
     /**
      * Execute the job.
