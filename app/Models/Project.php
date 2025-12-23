@@ -27,7 +27,6 @@ class Project extends Model
         'responsibilities',
         'deliverables',
         'project_type',
-        'project_type_id',
         'work_type',
         'budget_type',
         'budget_min',
@@ -296,13 +295,16 @@ class Project extends Model
 
     /**
      * Get the skills required for this project.
+     * 
+     * NOTE: We're using skills_required JSON column instead of pivot table
+     * To get skills: Skill::whereIn('id', $project->skills_required)->get()
      */
-    public function skills()
-    {
-        return $this->belongsToMany(Skill::class, 'project_skills')
-                    ->withPivot(['level_required', 'is_required'])
-                    ->withTimestamps();
-    }
+    // public function skills()
+    // {
+    //     return $this->belongsToMany(Skill::class, 'project_skills')
+    //                 ->withPivot(['level_required', 'is_required'])
+    //                 ->withTimestamps();
+    // }
 
     /**
      * Get all media files for this project.
