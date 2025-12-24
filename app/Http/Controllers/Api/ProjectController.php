@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Project;
 use App\Models\ProjectType;
+use App\Jobs\GenerateProjectEmbeddings;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ProjectController extends Controller
 {
@@ -154,13 +156,28 @@ class ProjectController extends Controller
 
             DB::commit();
 
+            try {
+                GenerateProjectEmbeddings::dispatch($project)->onQueue('embeddings');
+                Log::info('Embedding job dispatched for project: ' . $project->id);
+            } catch (\Exception $e) {
+                // Don't fail the request if embedding dispatch fails
+                Log::error('Failed to dispatch embedding job: ' . $e->getMessage());
+            }
+
             // Load relationships
-            $project->load(['projectType', 'category', 'recruiterProfile.user']);
+            $project->load(['projectType', 'primaryCategory', 'recruiterProfile.user']);
+            $skills = [];
+            if ($project->skills_required && is_array($project->skills_required)) {
+                $skills = \App\Models\Skill::whereIn('id', $project->skills_required)->get();
+            }
+
+            $projectData = $project->toArray();
+            $projectData['skills'] = $skills;
 
             return response()->json([
                 'success' => true,
                 'message' => 'Project created successfully',
-                'data' => $project,
+                'data' => $projectData,
             ], 201);
 
         } catch (\Exception $e) {
@@ -181,9 +198,10 @@ class ProjectController extends Controller
     {
         $user = $request->user();
 
+        // ✅ FIXED: Removed primaryCategory, skills - load only what exists
         $project = Project::where('id', $id)
             ->where('recruiter_profile_id', $user->recruiterProfile->id)
-            ->with(['projectType', 'category', 'skills', 'applications'])
+            ->with(['projectType', 'recruiterProfile.user', 'applications'])
             ->first();
 
         if (!$project) {
@@ -193,9 +211,26 @@ class ProjectController extends Controller
             ], 404);
         }
 
+        // ✅ Manually fetch skills from JSON column
+        $skills = [];
+        if ($project->skills_required && is_array($project->skills_required)) {
+            $skills = \App\Models\Skill::whereIn('id', $project->skills_required)->get();
+        }
+
+        // ✅ Manually load category if needed
+        $category = null;
+        if ($project->primary_category_id) {
+            $category = \App\Models\Category::find($project->primary_category_id);
+        }
+
+        // Add to response
+        $projectData = $project->toArray();
+        $projectData['skills'] = $skills;
+        $projectData['category'] = $category;
+
         return response()->json([
             'success' => true,
-            'data' => $project,
+            'data' => $projectData,
         ]);
     }
 

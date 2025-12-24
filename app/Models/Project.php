@@ -27,6 +27,7 @@ class Project extends Model
         'responsibilities',
         'deliverables',
         'project_type',
+        'project_type_id',
         'work_type',
         'budget_type',
         'budget_min',
