@@ -63,132 +63,141 @@ class ProjectController extends Controller
      * Create a new project
      * POST /api/v1/recruiter/projects
      */
-    public function store(Request $request)
-    {
-        $user = $request->user();
+      public function store(Request $request)
+        {
+            $user = $request->user();
 
-        if (!$user->recruiterProfile) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Recruiter profile not found. Please create a recruiter profile first.',
-            ], 404);
-        }
+            if (!$user->recruiterProfile) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Recruiter profile not found. Please create a recruiter profile first.',
+                ], 404);
+            }
 
-        // Validation
-        $validator = Validator::make($request->all(), [
-            'title' => 'required|string|min:10|max:255',
-            'description' => 'required|string|min:50',
-            'project_type_id' => 'required|exists:project_types,id',
-            'primary_category_id' => 'nullable|uuid|exists:categories,id',
-            'work_type' => 'nullable|in:on_site,remote,hybrid',
-            'experience_level' => 'nullable|in:entry,intermediate,advanced,expert',
-            'budget_min' => 'nullable|numeric|min:0',
-            'budget_max' => 'nullable|numeric|min:0|gte:budget_min',
-            'budget_currency' => 'required|string|max:3',
-            'budget_type' => 'nullable|in:fixed,hourly,daily,negotiable',
-            'budget_negotiable' => 'boolean',
-            'positions_available' => 'nullable|integer|min:1',
-            'application_deadline' => 'nullable|date|after:today',
-            'project_start_date' => 'nullable|date',
-            'project_end_date' => 'nullable|date|after:project_start_date',
-            'duration' => 'nullable|integer|min:1',
-            'location' => 'nullable|string|max:255',
-            'skills_required' => 'nullable|array',
-            'skills_required.*' => 'uuid|exists:skills,id',
-            'requirements' => 'nullable|string',
-            'responsibilities' => 'nullable|string',
-            'deliverables' => 'nullable|string',
-            'visibility' => 'nullable|in:public,private,invited_only',
-            'urgency' => 'nullable|in:low,normal,high,urgent',
-            'is_featured' => 'boolean',
-            'requires_portfolio' => 'boolean',
-            'requires_demo_reel' => 'boolean',
-            'application_questions' => 'nullable|array',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors(),
-            ], 422);
-        }
-
-        DB::beginTransaction();
-        try {
-            // Create project
-            $project = Project::create([
-                'recruiter_profile_id' => $user->recruiterProfile->id,
-                'posted_by' => $user->id,
-                'title' => $request->title,
-                'description' => $request->description,
-                'project_type_id' => $request->project_type_id,
-                'primary_category_id' => $request->primary_category_id,
-                'work_type' => $request->work_type ?? 'on_site',
-                'experience_level' => $request->experience_level ?? 'intermediate',
-                'budget_min' => $request->budget_min,
-                'budget_max' => $request->budget_max,
-                'budget_currency' => $request->budget_currency ?? 'AED',
-                'budget_type' => $request->budget_type ?? 'fixed',
-                'budget_negotiable' => $request->budget_negotiable ?? false,
-                'positions_available' => $request->positions_available ?? 1,
-                'application_deadline' => $request->application_deadline,
-                'project_start_date' => $request->project_start_date,
-                'project_end_date' => $request->project_end_date,
-                'duration' => $request->duration,
-                'location' => $request->location,
-                'skills_required' => $request->skills_required ?? [],
-                'requirements' => $request->requirements,
-                'responsibilities' => $request->responsibilities,
-                'deliverables' => $request->deliverables,
-                'status' => 'draft', // Start as draft
-                'visibility' => $request->visibility ?? 'public',
-                'urgency' => $request->urgency ?? 'normal',
-                'is_featured' => $request->is_featured ?? false,
-                'requires_portfolio' => $request->requires_portfolio ?? false,
-                'requires_demo_reel' => $request->requires_demo_reel ?? false,
-                'application_questions' => $request->application_questions ?? [],
-                'views_count' => 0,
-                'applications_count' => 0,
+            // Validation
+            $validator = Validator::make($request->all(), [
+                'title' => 'required|string|min:10|max:255',
+                'description' => 'required|string|min:50',
+                'project_type_id' => 'required|exists:project_types,id',
+                'primary_category_id' => 'nullable|uuid|exists:categories,id',
+                'work_type' => 'nullable|in:on_site,remote,hybrid',
+                'experience_level' => 'nullable|in:entry,intermediate,advanced,expert',
+                'budget_min' => 'nullable|numeric|min:0',
+                'budget_max' => 'nullable|numeric|min:0|gte:budget_min',
+                'budget_currency' => 'required|string|max:3',
+                'budget_type' => 'nullable|in:fixed,hourly,daily,negotiable',
+                'budget_negotiable' => 'boolean',
+                'positions_available' => 'nullable|integer|min:1',
+                'application_deadline' => 'nullable|date|after:today',
+                'project_start_date' => 'nullable|date',
+                'project_end_date' => 'nullable|date|after:project_start_date',
+                'duration' => 'nullable|integer|min:1',
+                'location' => 'nullable|string|max:255',
+                'skills_required' => 'nullable|array',
+                'skills_required.*' => 'uuid|exists:skills,id',
+                'requirements' => 'nullable|string',
+                'responsibilities' => 'nullable|string',
+                'deliverables' => 'nullable|string',
+                'visibility' => 'nullable|in:public,private,invited_only',
+                'urgency' => 'nullable|in:low,normal,high,urgent',
+                'is_featured' => 'boolean',
+                'requires_portfolio' => 'boolean',
+                'requires_demo_reel' => 'boolean',
+                'application_questions' => 'nullable|array',
             ]);
 
-            // ✅ Skills are already stored as JSON in skills_required column (line 137)
-            // No need for pivot table attachment
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'errors' => $validator->errors(),
+                ], 422);
+            }
 
-            DB::commit();
-
+            DB::beginTransaction();
             try {
-                GenerateProjectEmbeddings::dispatch($project)->onQueue('embeddings');
-                Log::info('Embedding job dispatched for project: ' . $project->id);
+                // Create project
+                $project = Project::create([
+                    'recruiter_profile_id' => $user->recruiterProfile->id,
+                    'posted_by' => $user->id,
+                    'title' => $request->title,
+                    'description' => $request->description,
+                    'project_type_id' => $request->project_type_id,
+                    'primary_category_id' => $request->primary_category_id,
+                    'work_type' => $request->work_type ?? 'on_site',
+                    'experience_level' => $request->experience_level ?? 'intermediate',
+                    'budget_min' => $request->budget_min,
+                    'budget_max' => $request->budget_max,
+                    'budget_currency' => $request->budget_currency ?? 'AED',
+                    'budget_type' => $request->budget_type ?? 'fixed',
+                    'budget_negotiable' => $request->budget_negotiable ?? false,
+                    'positions_available' => $request->positions_available ?? 1,
+                    'application_deadline' => $request->application_deadline,
+                    'project_start_date' => $request->project_start_date,
+                    'project_end_date' => $request->project_end_date,
+                    'duration' => $request->duration,
+                    'location' => $request->location,
+                    'skills_required' => $request->skills_required ?? [],
+                    'requirements' => $request->requirements,
+                    'responsibilities' => $request->responsibilities,
+                    'deliverables' => $request->deliverables,
+                    'status' => 'draft', // Start as draft
+                    'visibility' => $request->visibility ?? 'public',
+                    'urgency' => $request->urgency ?? 'normal',
+                    'is_featured' => $request->is_featured ?? false,
+                    'requires_portfolio' => $request->requires_portfolio ?? false,
+                    'requires_demo_reel' => $request->requires_demo_reel ?? false,
+                    'application_questions' => $request->application_questions ?? [],
+                    'views_count' => 0,
+                    'applications_count' => 0,
+                ]);
+
+                DB::commit();
+
+                // Try to dispatch embedding job (don't fail if it doesn't work)
+                try {
+                    GenerateProjectEmbeddings::dispatch($project)->onQueue('embeddings');
+                    Log::info('Embedding job dispatched for project: ' . $project->id);
+                } catch (\Exception $e) {
+                    // Don't fail the request if embedding dispatch fails
+                    Log::error('Failed to dispatch embedding job: ' . $e->getMessage());
+                }
+
+                // ✅ FIXED: Load relationships that actually exist
+                // Removed 'primaryCategory' - using 'category' instead
+                $project->load(['projectType', 'recruiterProfile.user']);
+                
+                // ✅ Manually fetch skills from JSON column
+                $skills = [];
+                if ($project->skills_required && is_array($project->skills_required)) {
+                    $skills = \App\Models\Skill::whereIn('id', $project->skills_required)->get();
+                }
+
+                // ✅ Manually fetch category
+                $category = null;
+                if ($project->primary_category_id) {
+                    $category = \App\Models\Category::find($project->primary_category_id);
+                }
+
+                // Build response
+                $projectData = $project->toArray();
+                $projectData['skills'] = $skills;
+                $projectData['category'] = $category;
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Project created successfully',
+                    'data' => $projectData,
+                ], 201);
+
             } catch (\Exception $e) {
-                // Don't fail the request if embedding dispatch fails
-                Log::error('Failed to dispatch embedding job: ' . $e->getMessage());
+                DB::rollBack();
+                
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to create project: ' . $e->getMessage(),
+                ], 500);
             }
-
-            // Load relationships
-            $project->load(['projectType', 'primaryCategory', 'recruiterProfile.user']);
-            $skills = [];
-            if ($project->skills_required && is_array($project->skills_required)) {
-                $skills = \App\Models\Skill::whereIn('id', $project->skills_required)->get();
-            }
-
-            $projectData = $project->toArray();
-            $projectData['skills'] = $skills;
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Project created successfully',
-                'data' => $projectData,
-            ], 201);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to create project: ' . $e->getMessage(),
-            ], 500);
         }
-    }
 
     /**
      * Get single project
