@@ -19,7 +19,7 @@ class Project extends Model
     protected $fillable = [
         'recruiter_profile_id',
         'posted_by',
-        'primary_category_id', // FIXED: Was 'category_id'
+        'primary_category_id',
         'title',
         'slug',
         'description',
@@ -27,11 +27,13 @@ class Project extends Model
         'responsibilities',
         'deliverables',
         'project_type',
+        'project_type_id',
         'work_type',
         'budget_type',
         'budget_min',
         'budget_max',
         'budget_currency',
+        'budget_negotiable', // ✅ ADDED
         'duration',
         'start_date',
         'end_date',
@@ -46,10 +48,14 @@ class Project extends Model
         'tags',
         'application_deadline',
         'application_instructions',
+        'application_questions', // ✅ ADDED
         'external_url',
         'contact_info',
         'is_featured',
         'is_urgent',
+        'urgency', // ✅ ADDED - for urgency level (low, normal, high, urgent)
+        'requires_portfolio', // ✅ ADDED
+        'requires_demo_reel', // ✅ ADDED
         'views_count',
         'applications_count',
         'visibility',
@@ -58,6 +64,8 @@ class Project extends Model
         'approved_by',
         'rejection_reason',
         'metadata',
+        'project_start_date', // ✅ ADDED
+        'project_end_date', // ✅ ADDED
         'requirements_embedding',
         'required_skills_embedding',
         'embeddings_generated_at',
@@ -70,11 +78,16 @@ class Project extends Model
     protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
+        'project_start_date' => 'date', // ✅ ADDED
+        'project_end_date' => 'date', // ✅ ADDED
         'deadline' => 'datetime',
         'application_deadline' => 'datetime',
         'approved_at' => 'datetime',
         'is_featured' => 'boolean',
         'is_urgent' => 'boolean',
+        'requires_portfolio' => 'boolean', // ✅ ADDED
+        'requires_demo_reel' => 'boolean', // ✅ ADDED
+        'budget_negotiable' => 'boolean', // ✅ ADDED
         'budget_min' => 'decimal:2',
         'budget_max' => 'decimal:2',
         'tags' => 'array',
@@ -85,6 +98,7 @@ class Project extends Model
         'location' => 'array',
         'contact_info' => 'array',
         'metadata' => 'array',
+        'application_questions' => 'array', // ✅ ADDED
         'views_count' => 'integer',
         'applications_count' => 'integer',
         'positions_available' => 'integer',
@@ -257,16 +271,16 @@ class Project extends Model
     }
 
     public function recruiter()
-{
-    return $this->belongsTo(User::class, 'recruiter_id');
-}
+    {
+        return $this->belongsTo(User::class, 'recruiter_id');
+    }
 
     /**
      * Get the category this project belongs to.
      */
     public function category()
     {
-        return $this->belongsTo(Category::class, 'primary_category_id'); // FIXED: Added foreign key
+        return $this->belongsTo(Category::class, 'primary_category_id');
     }
 
     /**
@@ -493,7 +507,7 @@ class Project extends Model
      */
     public function scopeByCategory($query, $categoryId)
     {
-        return $query->where('primary_category_id', $categoryId); // FIXED: Was 'category_id'
+        return $query->where('primary_category_id', $categoryId);
     }
 
     /**

@@ -70,7 +70,7 @@ class PublicController extends Controller
     public function projects(Request $request): JsonResponse
     {
         $query = Project::with(['recruiter.recruiterProfile', 'category'])
-            ->where('status', 'open')
+            ->where('status', 'published')
             ->where('visibility', 'public');
 
         // Search
@@ -130,7 +130,7 @@ class PublicController extends Controller
     public function showProject(string $id): JsonResponse
     {
         $project = Project::with(['recruiter.recruiterProfile', 'category', 'skills'])
-            ->where('status', 'open')
+            ->where('status', 'published')
             ->where('visibility', 'public')
             ->find($id);
 
@@ -427,7 +427,7 @@ class PublicController extends Controller
             ->get();
 
         // Search projects
-        $projects = Project::where('status', 'open')
+        $projects = Project::where('status', 'published')
             ->where('visibility', 'public')
             ->where(function ($q) use ($query) {
                 $q->where('title', 'like', "%{$query}%")
