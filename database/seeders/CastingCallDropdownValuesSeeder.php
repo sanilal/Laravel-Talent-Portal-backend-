@@ -33,7 +33,7 @@ class CastingCallDropdownValuesSeeder extends Seeder
                 'id' => Str::uuid()->toString(),
                 'type' => $TYPE_AGE_GROUP,
                 'value' => $ageGroup,
-                'display_order' => $index + 1,
+                'sort_order' => $index + 1,
                 'is_active' => true,
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -48,7 +48,7 @@ class CastingCallDropdownValuesSeeder extends Seeder
                 'id' => Str::uuid()->toString(),
                 'type' => $TYPE_SKIN_TONE,
                 'value' => $skinTone,
-                'display_order' => $index + 1,
+                'sort_order' => $index + 1,
                 'is_active' => true,
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -69,7 +69,7 @@ class CastingCallDropdownValuesSeeder extends Seeder
                 'id' => Str::uuid()->toString(),
                 'type' => $TYPE_HEIGHT,
                 'value' => $height,
-                'display_order' => $index + 1,
+                'sort_order' => $index + 1,
                 'is_active' => true,
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -84,7 +84,7 @@ class CastingCallDropdownValuesSeeder extends Seeder
                 'id' => Str::uuid()->toString(),
                 'type' => $TYPE_GENDER,
                 'value' => $gender,
-                'display_order' => $index + 1,
+                'sort_order' => $index + 1,
                 'is_active' => true,
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -98,5 +98,6 @@ class CastingCallDropdownValuesSeeder extends Seeder
         $this->command->info('Skin Tones: ' . count($skinTones));
         $this->command->info('Heights: ' . count($heights));
         $this->command->info('Genders: ' . count($genders));
+        $this->command->info('Total: ' . count($dropdowns));
     }
 }
