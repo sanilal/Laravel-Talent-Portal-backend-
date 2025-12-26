@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\CastingCall;
 use App\Models\CastingCallRequirement;
+use App\Models\RecruiterProfile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -90,12 +91,17 @@ class CastingCallController extends Controller
         try {
             $user = $request->user();
             
-            if (!$user->recruiter_profile) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Recruiter profile not found',
-                ], 404);
-            }
+            // ✅ AUTO-CREATE RECRUITER PROFILE IF NOT EXISTS
+            $recruiterProfile = RecruiterProfile::firstOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'company_name' => $user->name ?? 'Individual',
+                    'contact_email' => $user->email,
+                    'phone' => $user->phone ?? null,
+                    'is_verified' => false,
+                    'status' => 'active',
+                ]
+            );
 
             $query = CastingCall::with([
                 'genre',
@@ -104,7 +110,7 @@ class CastingCallController extends Controller
                 'state',
                 'requirements.subcategory',
                 'media'
-            ])->byRecruiter($user->recruiter_profile->id);
+            ])->byRecruiter($recruiterProfile->id);
 
             // Status filter
             if ($request->has('status')) {
@@ -177,12 +183,17 @@ class CastingCallController extends Controller
         try {
             $user = $request->user();
             
-            if (!$user->recruiter_profile) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Recruiter profile not found. Please create a recruiter profile first.',
-                ], 403);
-            }
+            // ✅ AUTO-CREATE RECRUITER PROFILE IF NOT EXISTS
+            $recruiterProfile = RecruiterProfile::firstOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'company_name' => $user->name ?? 'Individual',
+                    'contact_email' => $user->email,
+                    'phone' => $user->phone ?? null,
+                    'is_verified' => false,
+                    'status' => 'active',
+                ]
+            );
 
             $validator = Validator::make($request->all(), [
                 // Project Details
@@ -248,7 +259,7 @@ class CastingCallController extends Controller
 
             // Create casting call
             $castingCallData = $request->except(['requirements', 'media_ids']);
-            $castingCallData['recruiter_id'] = $user->recruiter_profile->id;
+            $castingCallData['recruiter_id'] = $recruiterProfile->id;
             
             $castingCall = CastingCall::create($castingCallData);
 
@@ -308,8 +319,20 @@ class CastingCallController extends Controller
             $user = $request->user();
             $castingCall = CastingCall::findOrFail($id);
 
+            // ✅ AUTO-CREATE RECRUITER PROFILE IF NOT EXISTS
+            $recruiterProfile = RecruiterProfile::firstOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'company_name' => $user->name ?? 'Individual',
+                    'contact_email' => $user->email,
+                    'phone' => $user->phone ?? null,
+                    'is_verified' => false,
+                    'status' => 'active',
+                ]
+            );
+
             // Check ownership
-            if (!$user->recruiter_profile || $castingCall->recruiter_id !== $user->recruiter_profile->id) {
+            if ($castingCall->recruiter_id !== $recruiterProfile->id) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Unauthorized to update this casting call',
@@ -456,8 +479,20 @@ class CastingCallController extends Controller
             $user = $request->user();
             $castingCall = CastingCall::findOrFail($id);
 
+            // ✅ AUTO-CREATE RECRUITER PROFILE IF NOT EXISTS
+            $recruiterProfile = RecruiterProfile::firstOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'company_name' => $user->name ?? 'Individual',
+                    'contact_email' => $user->email,
+                    'phone' => $user->phone ?? null,
+                    'is_verified' => false,
+                    'status' => 'active',
+                ]
+            );
+
             // Check ownership
-            if (!$user->recruiter_profile || $castingCall->recruiter_id !== $user->recruiter_profile->id) {
+            if ($castingCall->recruiter_id !== $recruiterProfile->id) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Unauthorized to delete this casting call',
@@ -489,8 +524,20 @@ class CastingCallController extends Controller
             $user = $request->user();
             $castingCall = CastingCall::findOrFail($id);
 
+            // ✅ AUTO-CREATE RECRUITER PROFILE IF NOT EXISTS
+            $recruiterProfile = RecruiterProfile::firstOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'company_name' => $user->name ?? 'Individual',
+                    'contact_email' => $user->email,
+                    'phone' => $user->phone ?? null,
+                    'is_verified' => false,
+                    'status' => 'active',
+                ]
+            );
+
             // Check ownership
-            if (!$user->recruiter_profile || $castingCall->recruiter_id !== $user->recruiter_profile->id) {
+            if ($castingCall->recruiter_id !== $recruiterProfile->id) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Unauthorized to publish this casting call',
@@ -523,8 +570,20 @@ class CastingCallController extends Controller
             $user = $request->user();
             $castingCall = CastingCall::findOrFail($id);
 
+            // ✅ AUTO-CREATE RECRUITER PROFILE IF NOT EXISTS
+            $recruiterProfile = RecruiterProfile::firstOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'company_name' => $user->name ?? 'Individual',
+                    'contact_email' => $user->email,
+                    'phone' => $user->phone ?? null,
+                    'is_verified' => false,
+                    'status' => 'active',
+                ]
+            );
+
             // Check ownership
-            if (!$user->recruiter_profile || $castingCall->recruiter_id !== $user->recruiter_profile->id) {
+            if ($castingCall->recruiter_id !== $recruiterProfile->id) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Unauthorized to close this casting call',
