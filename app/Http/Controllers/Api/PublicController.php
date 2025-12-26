@@ -68,61 +68,72 @@ class PublicController extends Controller
      * Get public project listings.
      */
     public function projects(Request $request): JsonResponse
-    {
-        $query = Project::with(['recruiter.recruiterProfile', 'category'])
-            ->where('status', 'published')
-            ->where('visibility', 'public');
+        {
+            $query = Project::with(['recruiter.recruiterProfile', 'category', 'projectType'])
+                ->where('status', 'published')
+                ->where('visibility', 'public');
 
-        // Search
-        if ($request->has('search') && $request->search) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
-            });
+            // Search
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('title', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
+                });
+            }
+
+            // Category filter
+            if ($request->filled('category_id')) {
+                $query->where('primary_category_id', $request->category_id);
+            }
+
+            // ✅ Project Type filter (using project_type_id)
+            if ($request->filled('project_type_id')) {
+                $query->where('project_type_id', $request->project_type_id);
+            }
+
+            // ✅ Experience Level filter
+            if ($request->filled('experience_level')) {
+                $query->where('experience_level', $request->experience_level);
+            }
+
+            // ✅ Remote/On-site filter
+            if ($request->filled('is_remote')) {
+                $isRemote = filter_var($request->is_remote, FILTER_VALIDATE_BOOLEAN);
+                $query->where('work_type', $isRemote ? 'remote' : 'on_site');
+            }
+
+            // Location filter
+            if ($request->filled('location')) {
+                $query->where('location', 'like', "%{$request->location}%");
+            }
+
+            // Budget range
+            if ($request->filled('min_budget')) {
+                $query->where('budget_max', '>=', $request->min_budget);
+            }
+            if ($request->filled('max_budget')) {
+                $query->where('budget_min', '<=', $request->max_budget);
+            }
+
+            // Sorting
+            $sortBy = $request->get('sort_by', 'created_at');
+            $sortOrder = $request->get('sort_order', 'desc');
+            
+            $allowedSorts = ['created_at', 'budget_min', 'budget_max', 'title'];
+            if (in_array($sortBy, $allowedSorts)) {
+                $query->orderBy($sortBy, $sortOrder);
+            }
+
+            // Pagination
+            $perPage = min($request->get('per_page', 15), 50);
+            $projects = $query->paginate($perPage);
+
+            return response()->json([
+                'success' => true,
+                'data' => $projects,
+            ]);
         }
-
-        // Category filter
-        if ($request->has('category_id')) {
-            $query->where('category_id', $request->category_id);
-        }
-
-        // Location filter
-        if ($request->has('location')) {
-            $query->where('location', 'like', "%{$request->location}%");
-        }
-
-        // Budget range
-        if ($request->has('min_budget')) {
-            $query->where('budget_max', '>=', $request->min_budget);
-        }
-        if ($request->has('max_budget')) {
-            $query->where('budget_min', '<=', $request->max_budget);
-        }
-
-        // Project type
-        if ($request->has('project_type')) {
-            $query->where('project_type', $request->project_type);
-        }
-
-        // Sorting
-        $sortBy = $request->get('sort_by', 'created_at');
-        $sortOrder = $request->get('sort_order', 'desc');
-        
-        $allowedSorts = ['created_at', 'budget_min', 'budget_max', 'title'];
-        if (in_array($sortBy, $allowedSorts)) {
-            $query->orderBy($sortBy, $sortOrder);
-        }
-
-        // Pagination
-        $perPage = min($request->get('per_page', 15), 50);
-        $projects = $query->paginate($perPage);
-
-        return response()->json([
-            'success' => true,
-            'data' => $projects,
-        ]);
-    }
 
     /**
      * Show single project.
