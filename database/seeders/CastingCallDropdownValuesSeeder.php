@@ -13,11 +13,11 @@ class CastingCallDropdownValuesSeeder extends Seeder
      */
     public function run(): void
     {
-        // Type codes
-        const TYPE_HEIGHT = 1;
-        const TYPE_SKIN_TONE = 2;
-        const TYPE_AGE_GROUP = 4;
-        const TYPE_GENDER = 5;
+        // Type codes (as variables)
+        $TYPE_HEIGHT = 1;
+        $TYPE_SKIN_TONE = 2;
+        $TYPE_AGE_GROUP = 4;
+        $TYPE_GENDER = 5;
 
         $dropdowns = [];
 
@@ -31,7 +31,7 @@ class CastingCallDropdownValuesSeeder extends Seeder
         foreach ($ageGroups as $index => $ageGroup) {
             $dropdowns[] = [
                 'id' => Str::uuid()->toString(),
-                'type' => self::TYPE_AGE_GROUP,
+                'type' => $TYPE_AGE_GROUP,
                 'value' => $ageGroup,
                 'display_order' => $index + 1,
                 'is_active' => true,
@@ -46,7 +46,7 @@ class CastingCallDropdownValuesSeeder extends Seeder
         foreach ($skinTones as $index => $skinTone) {
             $dropdowns[] = [
                 'id' => Str::uuid()->toString(),
-                'type' => self::TYPE_SKIN_TONE,
+                'type' => $TYPE_SKIN_TONE,
                 'value' => $skinTone,
                 'display_order' => $index + 1,
                 'is_active' => true,
@@ -67,7 +67,7 @@ class CastingCallDropdownValuesSeeder extends Seeder
         foreach ($heights as $index => $height) {
             $dropdowns[] = [
                 'id' => Str::uuid()->toString(),
-                'type' => self::TYPE_HEIGHT,
+                'type' => $TYPE_HEIGHT,
                 'value' => $height,
                 'display_order' => $index + 1,
                 'is_active' => true,
@@ -82,7 +82,7 @@ class CastingCallDropdownValuesSeeder extends Seeder
         foreach ($genders as $index => $gender) {
             $dropdowns[] = [
                 'id' => Str::uuid()->toString(),
-                'type' => self::TYPE_GENDER,
+                'type' => $TYPE_GENDER,
                 'value' => $gender,
                 'display_order' => $index + 1,
                 'is_active' => true,
