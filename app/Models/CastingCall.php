@@ -15,9 +15,12 @@ class CastingCall extends Model
     use HasFactory, HasUuids, SoftDeletes;
 
     protected $fillable = [
-        'recruiter_id',
+        // Core IDs
+        'recruiter_id',        // This is actually user_id
         'genre_id',
         'project_type_id',
+        
+        // Project Details
         'project_name',
         'title',
         'director',
@@ -25,16 +28,13 @@ class CastingCall extends Model
         'description',
         'synopsis',
         'additional_notes',
-        'role_name',
-        'role_type',
-        'gender_required',
-        'age_min',
-        'age_max',
-        'ethnicity_preferences',
-        'required_skills',
+        
+        // Audition Details (Project-wide)
         'audition_script',
         'audition_duration_seconds',
         'submission_requirements',
+        
+        // Location & Timing
         'location',
         'city',
         'country_id',
@@ -43,14 +43,20 @@ class CastingCall extends Model
         'audition_date',
         'audition_location',
         'is_remote_audition',
+        
+        // Compensation
         'compensation_type',
         'rate_amount',
         'rate_currency',
         'rate_period',
+        
+        // Status & Visibility
         'status',
         'visibility',
         'is_featured',
         'is_urgent',
+        
+        // Analytics
         'views_count',
         'applications_count',
     ];
@@ -65,10 +71,6 @@ class CastingCall extends Model
         'applications_count' => 'integer',
         'rate_amount' => 'decimal:2',
         'audition_duration_seconds' => 'integer',
-        'age_min' => 'integer',
-        'age_max' => 'integer',
-        'ethnicity_preferences' => 'array',
-        'required_skills' => 'array',
         'submission_requirements' => 'array',
     ];
 
@@ -83,11 +85,20 @@ class CastingCall extends Model
     ];
 
     /**
-     * Get the recruiter that posted this casting call
+     * Get the user (recruiter) that posted this casting call
+     * Note: recruiter_id column actually contains user.id, not recruiter_profile.id
      */
     public function recruiter(): BelongsTo
     {
-        return $this->belongsTo(RecruiterProfile::class, 'recruiter_id');
+        return $this->belongsTo(User::class, 'recruiter_id');
+    }
+
+    /**
+     * Alias for recruiter - get the user who created this casting call
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'recruiter_id');
     }
 
     /**
@@ -181,11 +192,19 @@ class CastingCall extends Model
     }
 
     /**
-     * Scope for recruiter's casting calls
+     * Scope for a specific user's casting calls
      */
-    public function scopeByRecruiter($query, $recruiterId)
+    public function scopeByUser($query, $userId)
     {
-        return $query->where('recruiter_id', $recruiterId);
+        return $query->where('recruiter_id', $userId);
+    }
+
+    /**
+     * Legacy scope - kept for backward compatibility
+     */
+    public function scopeByRecruiter($query, $userId)
+    {
+        return $query->where('recruiter_id', $userId);
     }
 
     /**

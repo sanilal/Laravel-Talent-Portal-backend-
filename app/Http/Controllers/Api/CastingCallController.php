@@ -49,14 +49,19 @@ class CastingCallController extends Controller
                 $query->urgent();
             }
 
-            // Search
+            // Search - UPDATED FOR CLEAN SCHEMA
             if ($request->has('search')) {
                 $search = $request->search;
                 $query->where(function($q) use ($search) {
                     $q->where('title', 'LIKE', "%{$search}%")
                       ->orWhere('project_name', 'LIKE', "%{$search}%")
                       ->orWhere('description', 'LIKE', "%{$search}%")
-                      ->orWhere('role_name', 'LIKE', "%{$search}%");
+                      ->orWhereHas('requirements', function($subQuery) use ($search) {
+                          // ✅ UPDATED: Search in requirements table instead of casting_calls
+                          $subQuery->where('role_name', 'LIKE', "%{$search}%")
+                                   ->orWhere('role_description', 'LIKE', "%{$search}%")
+                                   ->orWhere('role_type', 'LIKE', "%{$search}%");
+                      });
                 });
             }
 
@@ -198,7 +203,7 @@ class CastingCallController extends Controller
             $validator = Validator::make($request->all(), [
                 // Project Details
                 'project_type_id' => 'required|integer|exists:project_types,id',
-                'genre_id' => 'nullable|uuid|exists:genres,id', // ✅ FIXED: UUID not integer
+                'genre_id' => 'nullable|uuid|exists:genres,id',
                 'project_name' => 'required|string|max:255',
                 'title' => 'required|string|max:255',
                 'director' => 'nullable|string|max:255',
@@ -232,15 +237,18 @@ class CastingCallController extends Controller
                 'is_featured' => 'boolean',
                 'is_urgent' => 'boolean',
                 
-                // Requirements
+                // Requirements - UPDATED WITH NEW FIELDS
                 'requirements' => 'required|array|min:1',
+                'requirements.*.role_name' => 'required|string|max:255',
+                'requirements.*.role_description' => 'nullable|string',
+                'requirements.*.role_type' => 'nullable|string|max:50', // ✅ NEW
                 'requirements.*.gender' => 'nullable|in:male,female,non-binary,any',
                 'requirements.*.age_group' => 'nullable|string|max:50',
                 'requirements.*.skin_tone' => 'nullable|string|max:50',
                 'requirements.*.height' => 'nullable|string|max:50',
-                'requirements.*.subcategory_id' => 'nullable|uuid|exists:subcategories,id', // ✅ FIXED: UUID not integer
-                'requirements.*.role_name' => 'required|string|max:255',
-                'requirements.*.role_description' => 'nullable|string',
+                'requirements.*.subcategory_id' => 'nullable|uuid|exists:subcategories,id',
+                'requirements.*.required_skills' => 'nullable|array', // ✅ NEW
+                'requirements.*.required_skills.*' => 'string|max:100', // ✅ NEW
                 
                 // Media
                 'media_ids' => 'nullable|array|max:10',
@@ -342,7 +350,7 @@ class CastingCallController extends Controller
             $validator = Validator::make($request->all(), [
                 // Project Details
                 'project_type_id' => 'sometimes|required|integer|exists:project_types,id',
-                'genre_id' => 'nullable|uuid|exists:genres,id', // ✅ FIXED: UUID not integer
+                'genre_id' => 'nullable|uuid|exists:genres,id',
                 'project_name' => 'sometimes|required|string|max:255',
                 'title' => 'sometimes|required|string|max:255',
                 'director' => 'nullable|string|max:255',
@@ -376,16 +384,19 @@ class CastingCallController extends Controller
                 'is_featured' => 'boolean',
                 'is_urgent' => 'boolean',
                 
-                // Requirements
+                // Requirements - UPDATED WITH NEW FIELDS
                 'requirements' => 'sometimes|array|min:1',
-                'requirements.*.id' => 'nullable|uuid|exists:casting_call_requirements,id', // ✅ FIXED: UUID not integer
+                'requirements.*.id' => 'nullable|uuid|exists:casting_call_requirements,id',
+                'requirements.*.role_name' => 'required|string|max:255',
+                'requirements.*.role_description' => 'nullable|string',
+                'requirements.*.role_type' => 'nullable|string|max:50', // ✅ NEW
                 'requirements.*.gender' => 'nullable|in:male,female,non-binary,any',
                 'requirements.*.age_group' => 'nullable|string|max:50',
                 'requirements.*.skin_tone' => 'nullable|string|max:50',
                 'requirements.*.height' => 'nullable|string|max:50',
-                'requirements.*.subcategory_id' => 'nullable|uuid|exists:subcategories,id', // ✅ FIXED: UUID not integer
-                'requirements.*.role_name' => 'required|string|max:255',
-                'requirements.*.role_description' => 'nullable|string',
+                'requirements.*.subcategory_id' => 'nullable|uuid|exists:subcategories,id',
+                'requirements.*.required_skills' => 'nullable|array', // ✅ NEW
+                'requirements.*.required_skills.*' => 'string|max:100', // ✅ NEW
                 
                 // Media
                 'media_ids' => 'nullable|array|max:10',
