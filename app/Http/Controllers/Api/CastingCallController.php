@@ -197,16 +197,16 @@ class CastingCallController extends Controller
 
             $validator = Validator::make($request->all(), [
                 // Project Details
-                'project_type_id' => 'required|uuid|exists:project_types,id',
-                'genre_id' => 'nullable|uuid|exists:genres,id',
+                'project_type_id' => 'required|integer|exists:project_types,id',
+                'genre_id' => 'nullable|uuid|exists:genres,id', // ✅ FIXED: UUID not integer
                 'project_name' => 'required|string|max:255',
                 'title' => 'required|string|max:255',
                 'director' => 'nullable|string|max:255',
                 'production_company' => 'nullable|string|max:255',
                 'audition_date' => 'nullable|date',
                 'deadline' => 'required|date|after:today',
-                'country_id' => 'required|uuid|exists:countries,id',
-                'state_id' => 'nullable|uuid|exists:states,id',
+                'country_id' => 'required|integer|exists:countries,id',
+                'state_id' => 'nullable|integer|exists:states,id',
                 'city' => 'nullable|string|max:255',
                 'location' => 'nullable|string|max:500',
                 'description' => 'required|string',
@@ -238,7 +238,7 @@ class CastingCallController extends Controller
                 'requirements.*.age_group' => 'nullable|string|max:50',
                 'requirements.*.skin_tone' => 'nullable|string|max:50',
                 'requirements.*.height' => 'nullable|string|max:50',
-                'requirements.*.subcategory_id' => 'nullable|uuid|exists:subcategories,id',
+                'requirements.*.subcategory_id' => 'nullable|uuid|exists:subcategories,id', // ✅ FIXED: UUID not integer
                 'requirements.*.role_name' => 'required|string|max:255',
                 'requirements.*.role_description' => 'nullable|string',
                 
@@ -341,16 +341,16 @@ class CastingCallController extends Controller
 
             $validator = Validator::make($request->all(), [
                 // Project Details
-                'project_type_id' => 'sometimes|required|uuid|exists:project_types,id',
-                'genre_id' => 'nullable|uuid|exists:genres,id',
+                'project_type_id' => 'sometimes|required|integer|exists:project_types,id',
+                'genre_id' => 'nullable|uuid|exists:genres,id', // ✅ FIXED: UUID not integer
                 'project_name' => 'sometimes|required|string|max:255',
                 'title' => 'sometimes|required|string|max:255',
                 'director' => 'nullable|string|max:255',
                 'production_company' => 'nullable|string|max:255',
                 'audition_date' => 'nullable|date',
-                'deadline' => 'sometimes|required|date',
-                'country_id' => 'sometimes|required|uuid|exists:countries,id',
-                'state_id' => 'nullable|uuid|exists:states,id',
+                'deadline' => 'sometimes|required|date|after:today',
+                'country_id' => 'sometimes|required|integer|exists:countries,id',
+                'state_id' => 'nullable|integer|exists:states,id',
                 'city' => 'nullable|string|max:255',
                 'location' => 'nullable|string|max:500',
                 'description' => 'sometimes|required|string',
@@ -378,12 +378,12 @@ class CastingCallController extends Controller
                 
                 // Requirements
                 'requirements' => 'sometimes|array|min:1',
-                'requirements.*.id' => 'nullable|uuid|exists:casting_call_requirements,id',
+                'requirements.*.id' => 'nullable|uuid|exists:casting_call_requirements,id', // ✅ FIXED: UUID not integer
                 'requirements.*.gender' => 'nullable|in:male,female,non-binary,any',
                 'requirements.*.age_group' => 'nullable|string|max:50',
                 'requirements.*.skin_tone' => 'nullable|string|max:50',
                 'requirements.*.height' => 'nullable|string|max:50',
-                'requirements.*.subcategory_id' => 'nullable|uuid|exists:subcategories,id',
+                'requirements.*.subcategory_id' => 'nullable|uuid|exists:subcategories,id', // ✅ FIXED: UUID not integer
                 'requirements.*.role_name' => 'required|string|max:255',
                 'requirements.*.role_description' => 'nullable|string',
                 
