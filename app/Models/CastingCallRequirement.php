@@ -13,18 +13,21 @@ class CastingCallRequirement extends Model
 
     protected $fillable = [
         'casting_call_id',
+        'role_name',
+        'role_description',
+        'role_type',           // ✅ ADDED - Lead, Supporting, Extra, etc.
         'gender',
         'age_group',
         'skin_tone',
         'height',
         'subcategory_id',
-        'role_name',
-        'role_description',
+        'required_skills',     // ✅ ADDED - JSON array of skills
         'display_order',
     ];
 
     protected $casts = [
         'display_order' => 'integer',
+        'required_skills' => 'array',  // ✅ ADDED - Cast JSON to array
     ];
 
     /**

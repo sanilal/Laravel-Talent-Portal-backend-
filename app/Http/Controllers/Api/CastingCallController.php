@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\CastingCall;
 use App\Models\CastingCallRequirement;
-use App\Models\RecruiterProfile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -20,7 +19,7 @@ class CastingCallController extends Controller
     {
         try {
             $query = CastingCall::with([
-                'recruiter.user',
+                'recruiter', // This is actually the User model now
                 'genre',
                 'projectType',
                 'country',
@@ -49,7 +48,7 @@ class CastingCallController extends Controller
                 $query->urgent();
             }
 
-            // Search - UPDATED FOR CLEAN SCHEMA
+            // Search
             if ($request->has('search')) {
                 $search = $request->search;
                 $query->where(function($q) use ($search) {
@@ -57,7 +56,6 @@ class CastingCallController extends Controller
                       ->orWhere('project_name', 'LIKE', "%{$search}%")
                       ->orWhere('description', 'LIKE', "%{$search}%")
                       ->orWhereHas('requirements', function($subQuery) use ($search) {
-                          // ✅ UPDATED: Search in requirements table instead of casting_calls
                           $subQuery->where('role_name', 'LIKE', "%{$search}%")
                                    ->orWhere('role_description', 'LIKE', "%{$search}%")
                                    ->orWhere('role_type', 'LIKE', "%{$search}%");
@@ -89,24 +87,12 @@ class CastingCallController extends Controller
     }
 
     /**
-     * Get recruiter's casting calls
+     * Get user's (recruiter's) casting calls
      */
     public function recruiterIndex(Request $request)
     {
         try {
             $user = $request->user();
-            
-            // ✅ AUTO-CREATE RECRUITER PROFILE IF NOT EXISTS
-            $recruiterProfile = RecruiterProfile::firstOrCreate(
-                ['user_id' => $user->id],
-                [
-                    'company_name' => $user->name ?? 'Individual',
-                    'contact_email' => $user->email,
-                    'phone' => $user->phone ?? null,
-                    'is_verified' => false,
-                    'status' => 'active',
-                ]
-            );
 
             $query = CastingCall::with([
                 'genre',
@@ -115,7 +101,7 @@ class CastingCallController extends Controller
                 'state',
                 'requirements.subcategory',
                 'media'
-            ])->byRecruiter($recruiterProfile->id);
+            ])->byUser($user->id);
 
             // Status filter
             if ($request->has('status')) {
@@ -151,7 +137,7 @@ class CastingCallController extends Controller
     {
         try {
             $castingCall = CastingCall::with([
-                'recruiter.user',
+                'recruiter', // User model
                 'genre',
                 'projectType',
                 'country',
@@ -161,7 +147,7 @@ class CastingCallController extends Controller
             ])->findOrFail($id);
 
             // Increment views for public access
-            if (!$request->user() || $request->user()->id !== $castingCall->recruiter->user_id) {
+            if (!$request->user() || $request->user()->id !== $castingCall->recruiter_id) {
                 $castingCall->incrementViews();
             }
 
@@ -180,25 +166,13 @@ class CastingCallController extends Controller
         }
     }
 
-    /**
+     /**
      * Create new casting call
      */
     public function store(Request $request)
     {
         try {
             $user = $request->user();
-            
-            // ✅ AUTO-CREATE RECRUITER PROFILE IF NOT EXISTS
-            $recruiterProfile = RecruiterProfile::firstOrCreate(
-                ['user_id' => $user->id],
-                [
-                    'company_name' => $user->name ?? 'Individual',
-                    'contact_email' => $user->email,
-                    'phone' => $user->phone ?? null,
-                    'is_verified' => false,
-                    'status' => 'active',
-                ]
-            );
 
             $validator = Validator::make($request->all(), [
                 // Project Details
@@ -237,22 +211,22 @@ class CastingCallController extends Controller
                 'is_featured' => 'boolean',
                 'is_urgent' => 'boolean',
                 
-                // Requirements - UPDATED WITH NEW FIELDS
+                // Requirements
                 'requirements' => 'required|array|min:1',
                 'requirements.*.role_name' => 'required|string|max:255',
                 'requirements.*.role_description' => 'nullable|string',
-                'requirements.*.role_type' => 'nullable|string|max:50', // ✅ NEW
+                'requirements.*.role_type' => 'nullable|string|max:50',
                 'requirements.*.gender' => 'nullable|in:male,female,non-binary,any',
                 'requirements.*.age_group' => 'nullable|string|max:50',
                 'requirements.*.skin_tone' => 'nullable|string|max:50',
                 'requirements.*.height' => 'nullable|string|max:50',
                 'requirements.*.subcategory_id' => 'nullable|uuid|exists:subcategories,id',
-                'requirements.*.required_skills' => 'nullable|array', // ✅ NEW
-                'requirements.*.required_skills.*' => 'string|max:100', // ✅ NEW
+                'requirements.*.required_skills' => 'nullable|array',
+                'requirements.*.required_skills.*' => 'string|max:100',
                 
-                // Media
-                'media_ids' => 'nullable|array|max:10',
-                'media_ids.*' => 'uuid|exists:media,id',
+                // Media - UPDATED to accept actual files
+                'media' => 'nullable|array|max:10',
+                'media.*' => 'file|mimes:pdf,doc,docx,jpg,jpeg,png,mp4,mov|max:51200', // 50MB max
             ]);
 
             if ($validator->fails()) {
@@ -265,9 +239,9 @@ class CastingCallController extends Controller
 
             DB::beginTransaction();
 
-            // Create casting call
-            $castingCallData = $request->except(['requirements', 'media_ids']);
-            $castingCallData['recruiter_id'] = $recruiterProfile->id;
+            // Create casting call with user.id as recruiter_id
+            $castingCallData = $request->except(['requirements', 'media']);
+            $castingCallData['recruiter_id'] = $user->id;
             
             $castingCall = CastingCall::create($castingCallData);
 
@@ -279,12 +253,27 @@ class CastingCallController extends Controller
                 }
             }
 
-            // Attach media (documents)
-            if ($request->has('media_ids') && !empty($request->media_ids)) {
-                foreach ($request->media_ids as $mediaId) {
-                    DB::table('media')->where('id', $mediaId)->update([
-                        'mediable_id' => $castingCall->id,
-                        'mediable_type' => CastingCall::class,
+            // ✅ NEW: Handle file uploads and create media records
+            if ($request->hasFile('media')) {
+                foreach ($request->file('media') as $file) {
+                    // Store the file
+                    $path = $file->store('casting-calls', 'public');
+                    
+                    // Create media record in database
+                    DB::table('media')->insert([
+                        'id' => Str::uuid(),
+                        'uuid' => Str::uuid(),
+                        'model_type' => CastingCall::class,
+                        'model_id' => $castingCall->id,
+                        'file_name' => $file->getClientOriginalName(),
+                        'name' => pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME),
+                        'mime_type' => $file->getMimeType(),
+                        'size' => $file->getSize(),
+                        'disk' => 'public',
+                        'collection_name' => 'documents',
+                        'order_column' => 0,
+                        'created_at' => now(),
+                        'updated_at' => now(),
                     ]);
                 }
             }
@@ -327,20 +316,8 @@ class CastingCallController extends Controller
             $user = $request->user();
             $castingCall = CastingCall::findOrFail($id);
 
-            // ✅ AUTO-CREATE RECRUITER PROFILE IF NOT EXISTS
-            $recruiterProfile = RecruiterProfile::firstOrCreate(
-                ['user_id' => $user->id],
-                [
-                    'company_name' => $user->name ?? 'Individual',
-                    'contact_email' => $user->email,
-                    'phone' => $user->phone ?? null,
-                    'is_verified' => false,
-                    'status' => 'active',
-                ]
-            );
-
             // Check ownership
-            if ($castingCall->recruiter_id !== $recruiterProfile->id) {
+            if ($castingCall->recruiter_id !== $user->id) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Unauthorized to update this casting call',
@@ -384,23 +361,27 @@ class CastingCallController extends Controller
                 'is_featured' => 'boolean',
                 'is_urgent' => 'boolean',
                 
-                // Requirements - UPDATED WITH NEW FIELDS
+                // Requirements
                 'requirements' => 'sometimes|array|min:1',
                 'requirements.*.id' => 'nullable|uuid|exists:casting_call_requirements,id',
                 'requirements.*.role_name' => 'required|string|max:255',
                 'requirements.*.role_description' => 'nullable|string',
-                'requirements.*.role_type' => 'nullable|string|max:50', // ✅ NEW
+                'requirements.*.role_type' => 'nullable|string|max:50',
                 'requirements.*.gender' => 'nullable|in:male,female,non-binary,any',
                 'requirements.*.age_group' => 'nullable|string|max:50',
                 'requirements.*.skin_tone' => 'nullable|string|max:50',
                 'requirements.*.height' => 'nullable|string|max:50',
                 'requirements.*.subcategory_id' => 'nullable|uuid|exists:subcategories,id',
-                'requirements.*.required_skills' => 'nullable|array', // ✅ NEW
-                'requirements.*.required_skills.*' => 'string|max:100', // ✅ NEW
+                'requirements.*.required_skills' => 'nullable|array',
+                'requirements.*.required_skills.*' => 'string|max:100',
                 
-                // Media
-                'media_ids' => 'nullable|array|max:10',
-                'media_ids.*' => 'uuid|exists:media,id',
+                // Media - UPDATED to accept actual files
+                'media' => 'nullable|array|max:10',
+                'media.*' => 'file|mimes:pdf,doc,docx,jpg,jpeg,png,mp4,mov|max:51200',
+                
+                // Option to remove specific media by ID
+                'remove_media_ids' => 'nullable|array',
+                'remove_media_ids.*' => 'uuid|exists:media,id',
             ]);
 
             if ($validator->fails()) {
@@ -414,7 +395,7 @@ class CastingCallController extends Controller
             DB::beginTransaction();
 
             // Update casting call
-            $castingCallData = $request->except(['requirements', 'media_ids']);
+            $castingCallData = $request->except(['requirements', 'media', 'remove_media_ids']);
             $castingCall->update($castingCallData);
 
             // Update requirements
@@ -430,25 +411,42 @@ class CastingCallController extends Controller
                 }
             }
 
-            // Update media
-            if ($request->has('media_ids')) {
-                // Detach old media
-                DB::table('media')
-                    ->where('mediable_id', $castingCall->id)
-                    ->where('mediable_type', CastingCall::class)
-                    ->update([
-                        'mediable_id' => null,
-                        'mediable_type' => null,
-                    ]);
-                
-                // Attach new media
-                if (!empty($request->media_ids)) {
-                    foreach ($request->media_ids as $mediaId) {
-                        DB::table('media')->where('id', $mediaId)->update([
-                            'mediable_id' => $castingCall->id,
-                            'mediable_type' => CastingCall::class,
-                        ]);
+            // ✅ NEW: Remove specific media if requested
+            if ($request->has('remove_media_ids') && !empty($request->remove_media_ids)) {
+                foreach ($request->remove_media_ids as $mediaId) {
+                    // Get media record to delete file
+                    $media = DB::table('media')->where('id', $mediaId)->first();
+                    if ($media && $media->model_id === $castingCall->id) {
+                        // Delete file from storage
+                        \Storage::disk($media->disk)->delete($media->file_name);
+                        // Delete database record
+                        DB::table('media')->where('id', $mediaId)->delete();
                     }
+                }
+            }
+
+            // ✅ NEW: Add new media files
+            if ($request->hasFile('media')) {
+                foreach ($request->file('media') as $file) {
+                    // Store the file
+                    $path = $file->store('casting-calls', 'public');
+                    
+                    // Create media record
+                    DB::table('media')->insert([
+                        'id' => Str::uuid(),
+                        'uuid' => Str::uuid(),
+                        'model_type' => CastingCall::class,
+                        'model_id' => $castingCall->id,
+                        'file_name' => $file->getClientOriginalName(),
+                        'name' => pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME),
+                        'mime_type' => $file->getMimeType(),
+                        'size' => $file->getSize(),
+                        'disk' => 'public',
+                        'collection_name' => 'documents',
+                        'order_column' => 0,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
                 }
             }
 
@@ -490,20 +488,8 @@ class CastingCallController extends Controller
             $user = $request->user();
             $castingCall = CastingCall::findOrFail($id);
 
-            // ✅ AUTO-CREATE RECRUITER PROFILE IF NOT EXISTS
-            $recruiterProfile = RecruiterProfile::firstOrCreate(
-                ['user_id' => $user->id],
-                [
-                    'company_name' => $user->name ?? 'Individual',
-                    'contact_email' => $user->email,
-                    'phone' => $user->phone ?? null,
-                    'is_verified' => false,
-                    'status' => 'active',
-                ]
-            );
-
             // Check ownership
-            if ($castingCall->recruiter_id !== $recruiterProfile->id) {
+            if ($castingCall->recruiter_id !== $user->id) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Unauthorized to delete this casting call',
@@ -535,20 +521,8 @@ class CastingCallController extends Controller
             $user = $request->user();
             $castingCall = CastingCall::findOrFail($id);
 
-            // ✅ AUTO-CREATE RECRUITER PROFILE IF NOT EXISTS
-            $recruiterProfile = RecruiterProfile::firstOrCreate(
-                ['user_id' => $user->id],
-                [
-                    'company_name' => $user->name ?? 'Individual',
-                    'contact_email' => $user->email,
-                    'phone' => $user->phone ?? null,
-                    'is_verified' => false,
-                    'status' => 'active',
-                ]
-            );
-
             // Check ownership
-            if ($castingCall->recruiter_id !== $recruiterProfile->id) {
+            if ($castingCall->recruiter_id !== $user->id) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Unauthorized to publish this casting call',
@@ -581,20 +555,8 @@ class CastingCallController extends Controller
             $user = $request->user();
             $castingCall = CastingCall::findOrFail($id);
 
-            // ✅ AUTO-CREATE RECRUITER PROFILE IF NOT EXISTS
-            $recruiterProfile = RecruiterProfile::firstOrCreate(
-                ['user_id' => $user->id],
-                [
-                    'company_name' => $user->name ?? 'Individual',
-                    'contact_email' => $user->email,
-                    'phone' => $user->phone ?? null,
-                    'is_verified' => false,
-                    'status' => 'active',
-                ]
-            );
-
             // Check ownership
-            if ($castingCall->recruiter_id !== $recruiterProfile->id) {
+            if ($castingCall->recruiter_id !== $user->id) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Unauthorized to close this casting call',

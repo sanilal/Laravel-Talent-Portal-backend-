@@ -154,7 +154,7 @@ class CastingCall extends Model
      */
     public function media(): MorphMany
     {
-        return $this->morphMany(Media::class, 'mediable');
+        return $this->morphMany(Media::class, 'model');
     }
 
     /**
