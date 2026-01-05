@@ -486,6 +486,9 @@ Route::prefix('v1')->group(function () {
 
             // Applications
             Route::get('/applications', [ApplicationController::class, 'talentApplications'])->name('applications');
+
+            // Casting Call Applications
+            Route::post('/casting-calls/{id}/applications', [CastingCallController::class, 'submitApplication'])->name('casting-calls.apply');
         });
 
         // ============================================

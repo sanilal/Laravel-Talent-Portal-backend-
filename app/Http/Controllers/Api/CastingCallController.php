@@ -579,4 +579,93 @@ class CastingCallController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Submit application for casting call (Talent)
+     */
+    public function submitApplication(Request $request, $id)
+    {
+        try {
+            $user = $request->user();
+            $castingCall = CastingCall::findOrFail($id);
+
+            // Check if casting call is open
+            if ($castingCall->status !== 'published') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This casting call is not accepting applications',
+                ], 400);
+            }
+
+            // Validate request
+            $validated = $request->validate([
+                'role_id' => 'nullable|string',
+                'cover_letter' => 'required|string|min:50',
+                'experience_description' => 'nullable|string',
+                'resume' => 'nullable|file|mimes:pdf,doc,docx|max:5120', // 5MB
+                'headshots.*' => 'nullable|image|mimes:jpeg,jpg,png|max:5120', // 5MB each
+                'portfolio_files.*' => 'nullable|file|mimes:jpeg,jpg,png,pdf,mp4,mov|max:10240', // 10MB each
+                'demo_reel_url' => 'nullable|url',
+                'portfolio_urls' => 'nullable|array',
+                'portfolio_urls.*' => 'url',
+                'availability' => 'nullable|string',
+            ]);
+
+            // Create application record
+            $application = \App\Models\CastingCallApplication::create([
+                'casting_call_id' => $castingCall->id,
+                'talent_id' => $user->id,
+                'role_id' => $validated['role_id'] ?? null,
+                'cover_letter' => $validated['cover_letter'],
+                'experience_description' => $validated['experience_description'] ?? null,
+                'demo_reel_url' => $validated['demo_reel_url'] ?? null,
+                'portfolio_urls' => $validated['portfolio_urls'] ?? null,
+                'availability' => $validated['availability'] ?? null,
+                'status' => 'pending',
+            ]);
+
+            // Handle file uploads
+            if ($request->hasFile('resume')) {
+                $resumePath = $request->file('resume')->store('applications/resumes', 'public');
+                $application->update(['resume_path' => $resumePath]);
+            }
+
+            if ($request->hasFile('headshots')) {
+                $headshotPaths = [];
+                foreach ($request->file('headshots') as $headshot) {
+                    $path = $headshot->store('applications/headshots', 'public');
+                    $headshotPaths[] = $path;
+                }
+                $application->update(['headshot_paths' => $headshotPaths]);
+            }
+
+            if ($request->hasFile('portfolio_files')) {
+                $portfolioPaths = [];
+                foreach ($request->file('portfolio_files') as $file) {
+                    $path = $file->store('applications/portfolio', 'public');
+                    $portfolioPaths[] = $path;
+                }
+                $application->update(['portfolio_file_paths' => $portfolioPaths]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Application submitted successfully',
+                'data' => $application,
+            ], 201);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to submit application',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
