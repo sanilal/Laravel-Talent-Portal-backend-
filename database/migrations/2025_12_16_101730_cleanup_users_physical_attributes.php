@@ -29,7 +29,7 @@ use Illuminate\Support\Facades\DB;
  */
 return new class extends Migration
 {
-    private $columnsToRe move = [
+    private $columnsToRemove = [
         'height',
         'weight',
         'chest',

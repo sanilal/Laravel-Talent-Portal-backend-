@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\CountryController;
 use App\Http\Controllers\Api\ProjectTypeController;
 use App\Http\Controllers\Api\SkillController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\CastingCallController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -147,9 +148,9 @@ Route::prefix('v1')->group(function () {
          * 
          * Types:
          * 1 = Height, 2 = Skin Tone, 3 = Weight, 4 = Age Range
-         * 5 = Vehicle Type, 6 = Service Type, 7 = Event Type, 8 = Budget Range
+         * 5 = Gender, 6 = Service Type, 7 = Event Type, 8 = Budget Range
          * 9 = Eye Color, 10 = Hair Color, 11 = Body Type, 12 = Vocal Range
-         * 13 = Experience Level, 14 = Language Proficiency, 15 = Gender
+         * 13 = Experience Level, 14 = Language Proficiency, 15 = Vehicle Type
          */
         Route::get('/dropdown-list', [DropdownController::class, 'index'])
             ->name('dropdown.index');
@@ -183,33 +184,32 @@ Route::prefix('v1')->group(function () {
         
         /**
          * GET /api/v1/public/countries
-         * Get all countries with dialing codes and currency
-         * Compatible with: yourmoca.com/api/getAllCountryCode
+         * Get all countries
          */
         Route::get('/countries', [CountryController::class, 'index'])
             ->name('countries.index');
 
         /**
+         * GET /api/v1/public/countries/search
+         * Search countries by name or code
+         */
+        Route::get('/countries/search', [CountryController::class, 'search'])
+            ->name('countries.search');
+
+        /**
          * GET /api/v1/public/countries/{id}
-         * Get a single country with its states
+         * Get a specific country
          */
         Route::get('/countries/{id}', [CountryController::class, 'show'])
             ->name('countries.show');
 
         /**
-         * GET /api/v1/public/states?countryId=50
-         * Get states for a specific country
-         * Compatible with: yourmoca.com/api/getStates
+         * GET /api/v1/public/states
+         * Get states by country_id
+         * Query: ?country_id={uuid}
          */
         Route::get('/states', [CountryController::class, 'states'])
             ->name('states.index');
-
-        /**
-         * GET /api/v1/public/countries/search?q=united
-         * Search countries by name or code
-         */
-        Route::get('/countries/search', [CountryController::class, 'search'])
-            ->name('countries.search');
 
         // ============================================
         // PROJECT TYPES
@@ -218,17 +218,52 @@ Route::prefix('v1')->group(function () {
         /**
          * GET /api/v1/public/project-types
          * Get all project types
-         * Compatible with: yourmoca.com/api/getDropdownList structure
          */
         Route::get('/project-types', [ProjectTypeController::class, 'index'])
             ->name('project-types.index');
 
         /**
          * GET /api/v1/public/project-types/{id}
-         * Get a single project type
+         * Get a specific project type
          */
         Route::get('/project-types/{id}', [ProjectTypeController::class, 'show'])
             ->name('project-types.show');
+
+        // ============================================
+        // GENRES
+        // ============================================
+        
+        /**
+         * GET /api/v1/public/genres
+         * Get all genres for casting calls
+         */
+        Route::get('/genres', function () {
+            return response()->json([
+                'success' => true,
+                'message' => 'Genres retrieved successfully',
+                'data' => \App\Models\Genre::active()->ordered()->get(),
+            ]);
+        })->name('genres.index');
+
+        /**
+         * GET /api/v1/public/genres/{id}
+         * Get a single genre
+         */
+        Route::get('/genres/{id}', function ($id) {
+            try {
+                $genre = \App\Models\Genre::findOrFail($id);
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Genre retrieved successfully',
+                    'data' => $genre,
+                ]);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Genre not found',
+                ], 404);
+            }
+        })->name('genres.show');
 
         // ============================================
         // SKILLS
@@ -236,21 +271,24 @@ Route::prefix('v1')->group(function () {
         
         /**
          * GET /api/v1/public/skills
-         * Get all active skills for public access
-         * Used by recruiters (creating projects) and talents (browsing available skills)
-         * 
-         * Query Parameters:
-         * - category_id: Filter by category UUID
-         * - subcategory_id: Filter by subcategory UUID
-         * - search: Search by name or description
-         * - featured: Filter featured skills (true/false)
-         * - sort_by: name, popular, usage (default: name)
-         * - sort_order: asc, desc (default: asc)
-         * - paginate: Enable pagination (default: false)
-         * - per_page: Items per page (default: 50)
+         * Get all skills with optional filters
          */
         Route::get('/skills', [SkillController::class, 'index'])
             ->name('skills.index');
+
+        /**
+         * GET /api/v1/public/skills/{id}
+         * Get a specific skill
+         */
+        Route::get('/skills/{id}', [SkillController::class, 'show'])
+            ->name('skills.show');
+
+        /**
+         * GET /api/v1/public/skills/search
+         * Search skills by name
+         */
+        Route::get('/skills/search', [SkillController::class, 'search'])
+            ->name('skills.search');
 
         /**
          * GET /api/v1/public/skills/by-category
@@ -260,15 +298,8 @@ Route::prefix('v1')->group(function () {
             ->name('skills.by-category');
 
         /**
-         * GET /api/v1/public/skills/search?q=keyword
-         * Search skills by name or description
-         */
-        Route::get('/skills/search', [SkillController::class, 'search'])
-            ->name('skills.search');
-
-        /**
          * GET /api/v1/public/skills/featured
-         * Get featured/popular skills
+         * Get featured skills
          */
         Route::get('/skills/featured', [SkillController::class, 'featured'])
             ->name('skills.featured');
@@ -280,58 +311,74 @@ Route::prefix('v1')->group(function () {
         Route::get('/skills/stats', [SkillController::class, 'stats'])
             ->name('skills.stats');
 
-        /**
-         * GET /api/v1/public/skills/{id}
-         * Get a single skill by ID
-         */
-        Route::get('/skills/{id}', [SkillController::class, 'show'])
-            ->name('skills.show');
-
         // ============================================
-        // TALENT PROFILES (Public Listing)
+        // TALENTS (Public Browse)
         // ============================================
         
         /**
+         * GET /api/v1/public/talents
+         * Browse all talents
+         */
+        Route::get('/talents', [PublicController::class, 'talents'])
+            ->name('talents');
+
+        /**
+         * GET /api/v1/public/talents/{id}
+         * View talent profile
+         */
+        Route::get('/talents/{id}', [PublicController::class, 'talentProfile'])
+            ->name('talents.show');
+
+        /**
          * GET /api/v1/public/profiles
-         * Get talent profiles with advanced filtering
-         * Compatible with: yourmoca.com/api/getProfiles
-         * 
-         * Query Parameters:
-         * - categoryId: UUID
-         * - subcategoryId: UUID
-         * - country: Country ID
-         * - state: State ID
-         * - budgetMin: Minimum budget
-         * - budgetMax: Maximum budget
-         * - height: Height value
-         * - weight: Weight range
-         * - skinTone: Skin tone value
-         * - ageMin: Minimum age
-         * - ageMax: Maximum age
-         * - gender: Gender filter
-         * - page: Page number (default: 1)
-         * - limit: Results per page (default: 15)
-         * - sortBy: Sort field
-         * - sortOrder: asc/desc
+         * Browse all profiles (talents)
          */
         Route::get('/profiles', [ProfileController::class, 'index'])
             ->name('profiles.index');
 
         /**
          * GET /api/v1/public/profiles/{id}
-         * Get a single talent profile with full details
+         * View a specific profile
          */
         Route::get('/profiles/{id}', [ProfileController::class, 'show'])
             ->name('profiles.show');
 
         // ============================================
-        // LEGACY PUBLIC ENDPOINTS (Keep for compatibility)
+        // PROJECTS (Public Browse)
         // ============================================
         
-        Route::get('/talents', [PublicController::class, 'talents'])->name('talents');
-        Route::get('/talents/{id}', [PublicController::class, 'talentProfile'])->name('talents.show');
-        Route::get('/projects', [PublicController::class, 'projects'])->name('projects');
-        Route::get('/projects/{id}', [PublicController::class, 'projectDetail'])->name('projects.show');
+        /**
+         * GET /api/v1/public/projects
+         * Browse all projects
+         */
+        Route::get('/projects', [PublicController::class, 'projects'])
+            ->name('projects');
+
+        /**
+         * GET /api/v1/public/projects/{id}
+         * View project details
+         */
+        Route::get('/projects/{id}', [PublicController::class, 'projectDetail'])
+            ->name('projects.show');
+
+        // ============================================
+        // CASTING CALLS (Public Browse)
+        // ============================================
+        
+        /**
+         * GET /api/v1/public/casting-calls
+         * Browse all published casting calls
+         * Query params: genre_id, project_type_id, location, is_featured, is_urgent, search, per_page, page
+         */
+        Route::get('/casting-calls', [CastingCallController::class, 'index'])
+            ->name('casting-calls.index');
+
+        /**
+         * GET /api/v1/public/casting-calls/{id}
+         * View single casting call details
+         */
+        Route::get('/casting-calls/{id}', [CastingCallController::class, 'show'])
+            ->name('casting-calls.show');
 
     }); // End of public routes
 
@@ -340,33 +387,31 @@ Route::prefix('v1')->group(function () {
     // ============================================
 
     Route::prefix('auth')->name('auth.')->group(function () {
-        
-        // Registration & Login
+
+        // Basic Authentication
         Route::post('/register', [AuthController::class, 'register'])->name('register');
         Route::post('/login', [AuthController::class, 'login'])->name('login');
         Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum')->name('logout');
-        
-        // Email Verification
-        Route::post('/email/verify', [EmailVerificationController::class, 'verify'])
-        ->name('email.verify');
-    
-        Route::post('/email/resend', [EmailVerificationController::class, 'resend'])
-            ->name('email.resend');
-        
-        Route::get('/email/status', [EmailVerificationController::class, 'status'])
-            ->name('email.status');
 
-        
+        // Email Verification
+        Route::prefix('email')->name('email.')->middleware('auth:sanctum')->group(function () {
+            Route::get('/status', [EmailVerificationController::class, 'status'])->name('status');
+            Route::post('/verify', [EmailVerificationController::class, 'verify'])->name('verify');
+            Route::post('/resend', [EmailVerificationController::class, 'resend'])->name('resend');
+        });
+
         // Password Reset
-        Route::post('/password/email', [PasswordResetController::class, 'sendResetLink'])->name('password.email');
-        Route::post('/password/reset', [PasswordResetController::class, 'reset'])->name('password.reset');
-        
-        // Two-Factor Authentication
-        Route::middleware('auth:sanctum')->group(function () {
-            Route::post('/2fa/enable', [TwoFactorController::class, 'enable'])->name('2fa.enable');
-            Route::post('/2fa/confirm', [TwoFactorController::class, 'confirm'])->name('2fa.confirm');
-            Route::post('/2fa/disable', [TwoFactorController::class, 'disable'])->name('2fa.disable');
-            Route::post('/2fa/verify', [TwoFactorController::class, 'verify'])->name('2fa.verify');
+        Route::prefix('password')->name('password.')->group(function () {
+            Route::post('/email', [PasswordResetController::class, 'sendResetLink'])->name('email');
+            Route::post('/reset', [PasswordResetController::class, 'reset'])->name('reset');
+        });
+
+        // Two Factor Authentication
+        Route::prefix('2fa')->name('2fa.')->middleware('auth:sanctum')->group(function () {
+            Route::post('/enable', [TwoFactorController::class, 'enable'])->name('enable');
+            Route::post('/verify', [TwoFactorController::class, 'verify'])->name('verify');
+            Route::post('/confirm', [TwoFactorController::class, 'confirm'])->name('confirm');
+            Route::post('/disable', [TwoFactorController::class, 'disable'])->name('disable');
         });
     });
 
@@ -374,12 +419,9 @@ Route::prefix('v1')->group(function () {
     // PROTECTED ROUTES (Authentication Required)
     // ============================================
 
-    Route::middleware(['auth:sanctum'])->group(function () {
+    Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
-        // ============================================
-        // USER PROFILE
-        // ============================================
-        
+        // User Profile
         Route::get('/user', [AuthController::class, 'user'])->name('user');
         Route::put('/user/profile', [AuthController::class, 'updateProfile'])->name('user.update');
 
@@ -388,36 +430,34 @@ Route::prefix('v1')->group(function () {
         // ============================================
 
         Route::prefix('talent')->name('talent.')->middleware('role:talent')->group(function () {
-
-            // Talent Dashboard
+            
+            // Dashboard
             Route::get('/dashboard', [TalentProfileController::class, 'dashboard'])->name('dashboard');
-
+            
             // Talent Profile
             Route::get('/profile', [TalentProfileController::class, 'show'])->name('profile.show');
             Route::post('/profile', [TalentProfileController::class, 'store'])->name('profile.store');
             Route::put('/profile', [TalentProfileController::class, 'update'])->name('profile.update');
             Route::delete('/profile', [TalentProfileController::class, 'destroy'])->name('profile.destroy');
-            
-            // Profile-Level Attributes (Physical Attributes)
+
+            // Profile Attributes
             Route::get('/profile/attributes', [TalentProfileController::class, 'getAttributes'])->name('profile.attributes');
             Route::put('/profile/attributes', [TalentProfileController::class, 'updateAttributes'])->name('profile.attributes.update');
             Route::delete('/profile/attributes/{fieldName}', [TalentProfileController::class, 'deleteAttribute'])->name('profile.attributes.delete');
-            
+
             // Skills
             Route::prefix('skills')->name('skills.')->group(function () {
                 Route::get('/', [TalentSkillsController::class, 'index'])->name('index');
-                // 🆕 ADD THIS LINE - CRITICAL!
-                Route::get('/{skillId}/attributes', [TalentSkillsController::class, 'getSkillAttributes'])
-                    ->name('attributes');
                 Route::post('/', [TalentSkillsController::class, 'store'])->name('store');
                 Route::get('/{id}', [TalentSkillsController::class, 'show'])->name('show');
                 Route::put('/{id}', [TalentSkillsController::class, 'update'])->name('update');
                 Route::delete('/{id}', [TalentSkillsController::class, 'destroy'])->name('destroy');
-                Route::post('/reorder', [TalentSkillsController::class, 'reorder'])->name('reorder');
                 Route::post('/{id}/set-primary', [TalentSkillsController::class, 'setPrimary'])->name('set-primary');
+                Route::post('/reorder', [TalentSkillsController::class, 'reorder'])->name('reorder');
+                Route::get('/{skillId}/attributes', [TalentSkillsController::class, 'getSkillAttributes'])->name('attributes');
             });
-            
-            // Experiences
+
+            // Experience
             Route::prefix('experiences')->name('experiences.')->group(function () {
                 Route::get('/', [ExperiencesController::class, 'index'])->name('index');
                 Route::post('/', [ExperiencesController::class, 'store'])->name('store');
@@ -425,7 +465,7 @@ Route::prefix('v1')->group(function () {
                 Route::put('/{id}', [ExperiencesController::class, 'update'])->name('update');
                 Route::delete('/{id}', [ExperiencesController::class, 'destroy'])->name('destroy');
             });
-            
+
             // Education
             Route::prefix('education')->name('education.')->group(function () {
                 Route::get('/', [EducationController::class, 'index'])->name('index');
@@ -434,7 +474,7 @@ Route::prefix('v1')->group(function () {
                 Route::put('/{id}', [EducationController::class, 'update'])->name('update');
                 Route::delete('/{id}', [EducationController::class, 'destroy'])->name('destroy');
             });
-            
+
             // Portfolio
             Route::prefix('portfolio')->name('portfolio.')->group(function () {
                 Route::get('/', [PortfolioController::class, 'index'])->name('index');
@@ -443,9 +483,12 @@ Route::prefix('v1')->group(function () {
                 Route::put('/{id}', [PortfolioController::class, 'update'])->name('update');
                 Route::delete('/{id}', [PortfolioController::class, 'destroy'])->name('destroy');
             });
-            
+
             // Applications
             Route::get('/applications', [ApplicationController::class, 'talentApplications'])->name('applications');
+
+            // Casting Call Applications
+            Route::post('/casting-calls/{id}/applications', [CastingCallController::class, 'submitApplication'])->name('casting-calls.apply');
         });
 
         // ============================================
@@ -470,6 +513,52 @@ Route::prefix('v1')->group(function () {
                 Route::post('/{id}/publish', [ProjectController::class, 'publish'])->name('publish');
                 Route::post('/{id}/close', [ProjectController::class, 'close'])->name('close');
             });
+
+            // Casting Calls
+            Route::prefix('casting-calls')->name('casting-calls.')->group(function () {
+                /**
+                 * GET /api/v1/recruiter/casting-calls
+                 * Get recruiter's casting calls
+                 * Query params: status, per_page, page, sort_by, sort_order
+                 */
+                Route::get('/', [CastingCallController::class, 'recruiterIndex'])->name('index');
+                
+                /**
+                 * POST /api/v1/recruiter/casting-calls
+                 * Create new casting call
+                 */
+                Route::post('/', [CastingCallController::class, 'store'])->name('store');
+                
+                /**
+                 * GET /api/v1/recruiter/casting-calls/{id}
+                 * Get single casting call (owned by recruiter)
+                 */
+                Route::get('/{id}', [CastingCallController::class, 'show'])->name('show');
+                
+                /**
+                 * PUT /api/v1/recruiter/casting-calls/{id}
+                 * Update casting call
+                 */
+                Route::put('/{id}', [CastingCallController::class, 'update'])->name('update');
+                
+                /**
+                 * DELETE /api/v1/recruiter/casting-calls/{id}
+                 * Delete casting call
+                 */
+                Route::delete('/{id}', [CastingCallController::class, 'destroy'])->name('destroy');
+                
+                /**
+                 * POST /api/v1/recruiter/casting-calls/{id}/publish
+                 * Publish casting call (change status from draft to published)
+                 */
+                Route::post('/{id}/publish', [CastingCallController::class, 'publish'])->name('publish');
+                
+                /**
+                 * POST /api/v1/recruiter/casting-calls/{id}/close
+                 * Close casting call (stop accepting applications)
+                 */
+                Route::post('/{id}/close', [CastingCallController::class, 'close'])->name('close');
+            });
             
             // Applications
             Route::get('/applications', [ApplicationController::class, 'recruiterApplications'])->name('applications');
@@ -483,6 +572,15 @@ Route::prefix('v1')->group(function () {
         Route::prefix('projects')->name('projects.')->group(function () {
             Route::get('/', [ProjectController::class, 'publicIndex'])->name('public.index');
             Route::get('/{id}', [ProjectController::class, 'publicShow'])->name('public.show');
+            Route::post('/{id}/apply', [ApplicationController::class, 'apply'])->name('apply');
+        });
+
+        // Casting Calls (Apply - For Talents)
+        Route::prefix('casting-calls')->name('casting-calls.')->group(function () {
+            /**
+             * POST /api/v1/casting-calls/{id}/apply
+             * Apply to a casting call (talents only)
+             */
             Route::post('/{id}/apply', [ApplicationController::class, 'apply'])->name('apply');
         });
 
