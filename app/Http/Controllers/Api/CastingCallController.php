@@ -610,6 +610,18 @@ class CastingCallController extends Controller
                 ], 409);
             }
 
+            // Debug: Log incoming request data
+            \Log::info('Casting call application request received', [
+                'casting_call_id' => $id,
+                'user_id' => $user->id,
+                'request_all' => $request->except(['resume', 'headshots', 'portfolio_files']),
+                'has_files' => [
+                    'resume' => $request->hasFile('resume'),
+                    'headshots' => $request->hasFile('headshots'),
+                    'portfolio_files' => $request->hasFile('portfolio_files'),
+                ],
+            ]);
+
             // Validate request
             $validated = $request->validate([
                 'cover_letter' => 'required|string|min:50',
@@ -661,6 +673,7 @@ class CastingCallController extends Controller
 
             // Create application record using existing Application model
             $application = Application::create([
+                'project_id' => null, // No project for casting call applications
                 'casting_call_id' => $castingCall->id,
                 'talent_id' => $user->id,
                 'recruiter_id' => $castingCall->recruiter_id,
@@ -683,6 +696,12 @@ class CastingCallController extends Controller
             ], 201);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('Casting call application validation error', [
+                'casting_call_id' => $id,
+                'errors' => $e->errors(),
+                'request_data' => $request->except(['resume', 'headshots', 'portfolio_files']),
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
