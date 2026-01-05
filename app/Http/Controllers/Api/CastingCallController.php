@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Application;
 use App\Models\CastingCall;
 use App\Models\CastingCallRequirement;
 use Illuminate\Http\Request;
@@ -597,61 +598,88 @@ class CastingCallController extends Controller
                 ], 400);
             }
 
+            // Check if user already applied
+            $existingApplication = Application::where('casting_call_id', $id)
+                ->where('talent_id', $user->id)
+                ->first();
+
+            if ($existingApplication) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You have already applied to this casting call',
+                ], 409);
+            }
+
             // Validate request
             $validated = $request->validate([
-                'role_id' => 'nullable|string',
                 'cover_letter' => 'required|string|min:50',
-                'experience_description' => 'nullable|string',
+                'message' => 'nullable|string',
+                'pitch' => 'nullable|string',
+                'audition_video_url' => 'nullable|url',
+                'demo_reel_url' => 'nullable|url',
                 'resume' => 'nullable|file|mimes:pdf,doc,docx|max:5120', // 5MB
                 'headshots.*' => 'nullable|image|mimes:jpeg,jpg,png|max:5120', // 5MB each
                 'portfolio_files.*' => 'nullable|file|mimes:jpeg,jpg,png,pdf,mp4,mov|max:10240', // 10MB each
-                'demo_reel_url' => 'nullable|url',
-                'portfolio_urls' => 'nullable|array',
-                'portfolio_urls.*' => 'url',
-                'availability' => 'nullable|string',
+                'portfolio_links' => 'nullable|array',
+                'portfolio_links.*' => 'url',
+                'available_from' => 'nullable|date',
+                'available_until' => 'nullable|date|after_or_equal:available_from',
             ]);
 
-            // Create application record
-            $application = \App\Models\CastingCallApplication::create([
-                'casting_call_id' => $castingCall->id,
-                'talent_id' => $user->id,
-                'role_id' => $validated['role_id'] ?? null,
-                'cover_letter' => $validated['cover_letter'],
-                'experience_description' => $validated['experience_description'] ?? null,
-                'demo_reel_url' => $validated['demo_reel_url'] ?? null,
-                'portfolio_urls' => $validated['portfolio_urls'] ?? null,
-                'availability' => $validated['availability'] ?? null,
-                'status' => 'pending',
-            ]);
+            // Prepare attachments array for files
+            $attachments = [];
 
-            // Handle file uploads
+            // Handle resume upload
             if ($request->hasFile('resume')) {
                 $resumePath = $request->file('resume')->store('applications/resumes', 'public');
-                $application->update(['resume_path' => $resumePath]);
+                $validated['resume_url'] = $resumePath;
             }
 
+            // Handle headshot uploads
             if ($request->hasFile('headshots')) {
-                $headshotPaths = [];
                 foreach ($request->file('headshots') as $headshot) {
                     $path = $headshot->store('applications/headshots', 'public');
-                    $headshotPaths[] = $path;
+                    $attachments[] = [
+                        'type' => 'headshot',
+                        'path' => $path,
+                        'filename' => $headshot->getClientOriginalName(),
+                    ];
                 }
-                $application->update(['headshot_paths' => $headshotPaths]);
             }
 
+            // Handle portfolio file uploads
             if ($request->hasFile('portfolio_files')) {
-                $portfolioPaths = [];
                 foreach ($request->file('portfolio_files') as $file) {
                     $path = $file->store('applications/portfolio', 'public');
-                    $portfolioPaths[] = $path;
+                    $attachments[] = [
+                        'type' => 'portfolio',
+                        'path' => $path,
+                        'filename' => $file->getClientOriginalName(),
+                    ];
                 }
-                $application->update(['portfolio_file_paths' => $portfolioPaths]);
             }
+
+            // Create application record using existing Application model
+            $application = Application::create([
+                'casting_call_id' => $castingCall->id,
+                'talent_id' => $user->id,
+                'recruiter_id' => $castingCall->recruiter_id,
+                'cover_letter' => $validated['cover_letter'],
+                'message' => $validated['message'] ?? null,
+                'pitch' => $validated['pitch'] ?? null,
+                'audition_video_url' => $validated['audition_video_url'] ?? null,
+                'resume_url' => $validated['resume_url'] ?? null,
+                'attachments' => !empty($attachments) ? $attachments : null,
+                'portfolio_links' => $validated['portfolio_links'] ?? null,
+                'available_from' => $validated['available_from'] ?? null,
+                'available_until' => $validated['available_until'] ?? null,
+                'status' => 'pending',
+            ]);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Application submitted successfully',
-                'data' => $application,
+                'data' => $application->load('castingCall'),
             ], 201);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -661,6 +689,12 @@ class CastingCallController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
+            \Log::error('Casting call application error', [
+                'casting_call_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to submit application',
