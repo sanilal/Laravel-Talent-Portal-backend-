@@ -107,9 +107,12 @@ class ApplicationController extends Controller
                 $query->where('talent_id', $request->user()->id)
                       ->orWhereHas('project', function($q) use ($request) {
                           $q->where('recruiter_id', $request->user()->id);
+                      })
+                      ->orWhereHas('castingCall', function($q) use ($request) {
+                          $q->where('recruiter_id', $request->user()->id);
                       });
             })
-            ->with(['project', 'talent.talentProfile'])
+            ->with(['project', 'castingCall', 'talent.talentProfile'])
             ->first();
 
         if (!$application) {
@@ -129,11 +132,14 @@ class ApplicationController extends Controller
     public function updateStatus(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
-            'status' => 'required|in:pending,reviewing,shortlisted,accepted,rejected,withdrawn',
+            'status' => 'required|in:pending,under_review,shortlisted,interview_scheduled,accepted,rejected,withdrawn',
+            'notes' => 'nullable|string|max:2000',
+            'feedback' => 'nullable|string|max:2000',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
+                'success' => false,
                 'message' => 'Validation failed',
                 'errors' => $validator->errors()
             ], 422);
@@ -143,37 +149,46 @@ class ApplicationController extends Controller
 
         if (!$application) {
             return response()->json([
+                'success' => false,
                 'message' => 'Application not found',
             ], 404);
         }
 
-        // Check authorization - only project owner or talent can update
+        // Check authorization - only recruiter (project/casting call owner) can update status
         $user = $request->user();
-        $isProjectOwner = $application->project->recruiter_id === $user->id;
-        $isTalent = $application->talent_id === $user->id;
+        $isOwner = $application->recruiter_id === $user->id;
 
-        if (!$isProjectOwner && !$isTalent) {
+        if (!$isOwner) {
             return response()->json([
+                'success' => false,
                 'message' => 'Unauthorized to update this application',
             ], 403);
         }
 
-        // Talents can only withdraw their own applications
-        if ($isTalent && $request->status !== 'withdrawn') {
+        // Use model method to update status with timestamps
+        $success = $application->updateStatus($request->status, $request->notes);
+
+        if (!$success) {
             return response()->json([
-                'message' => 'You can only withdraw your application',
-            ], 403);
+                'success' => false,
+                'message' => 'Invalid status',
+            ], 400);
         }
 
-        $application->update([
-            'status' => $request->status,
-        ]);
+        // Add feedback to talent if provided
+        if ($request->feedback) {
+            $application->update(['feedback_to_talent' => $request->feedback]);
+        }
 
-        // TODO: Send notification to the other party
+        // Mark as read by recruiter
+        $application->markAsRead();
+
+        // TODO: Send notification to talent
 
         return response()->json([
+            'success' => true,
             'message' => 'Application status updated successfully',
-            'application' => $application->fresh(),
+            'data' => $application->fresh()->load(['castingCall', 'project', 'talent.talentProfile']),
         ]);
     }
 
@@ -188,6 +203,7 @@ class ApplicationController extends Controller
 
         if ($validator->fails()) {
             return response()->json([
+                'success' => false,
                 'message' => 'Validation failed',
                 'errors' => $validator->errors()
             ], 422);
@@ -197,13 +213,15 @@ class ApplicationController extends Controller
 
         if (!$application) {
             return response()->json([
+                'success' => false,
                 'message' => 'Application not found',
             ], 404);
         }
 
-        // Only project owner can add notes
-        if ($application->project->recruiter_id !== $request->user()->id) {
+        // Only recruiter (project/casting call owner) can add notes
+        if ($application->recruiter_id !== $request->user()->id) {
             return response()->json([
+                'success' => false,
                 'message' => 'Unauthorized to add notes to this application',
             ], 403);
         }
@@ -213,8 +231,9 @@ class ApplicationController extends Controller
         ]);
 
         return response()->json([
+            'success' => true,
             'message' => 'Notes added successfully',
-            'application' => $application->fresh(),
+            'data' => $application->fresh(),
         ]);
     }
 
@@ -229,20 +248,26 @@ class ApplicationController extends Controller
 
         if (!$application) {
             return response()->json([
+                'success' => false,
                 'message' => 'Application not found',
             ], 404);
         }
 
-        // Can only withdraw pending or reviewing applications
-        if (!in_array($application->status, ['pending', 'reviewing'])) {
+        // Check if application can be withdrawn
+        if (!$application->canBeWithdrawn()) {
             return response()->json([
-                'message' => 'Cannot withdraw application with current status',
+                'success' => false,
+                'message' => 'Cannot withdraw application with current status. Only pending and under review applications can be withdrawn.',
             ], 400);
         }
 
-        $application->update(['status' => 'withdrawn']);
+        // Use model method to update status with timestamps
+        $application->updateStatus(Application::STATUS_WITHDRAWN);
+
+        // TODO: Send notification to recruiter
 
         return response()->json([
+            'success' => true,
             'message' => 'Application withdrawn successfully',
         ]);
     }
@@ -254,7 +279,14 @@ class ApplicationController extends Controller
     public function talentApplications(Request $request)
     {
         $query = Application::where('talent_id', $request->user()->id)
-            ->with(['project.recruiter', 'project.category', 'project.subcategory']);
+            ->with([
+                'project.recruiter',
+                'project.category',
+                'project.subcategory',
+                'castingCall.recruiter',
+                'castingCall.genre',
+                'castingCall.projectType',
+            ]);
 
         // Filter by status
         if ($request->has('status')) {
@@ -270,14 +302,22 @@ class ApplicationController extends Controller
     }
 
     /**
-     * Get all applications for projects owned by authenticated recruiter
+     * Get all applications for projects and casting calls owned by authenticated recruiter
      * GET /api/v1/recruiter/applications
      */
     public function recruiterApplications(Request $request)
     {
-        $query = Application::whereHas('project', function($q) use ($request) {
-            $q->where('recruiter_id', $request->user()->id);
-        })->with(['talent.talentProfile', 'project']);
+        // Get applications for both projects AND casting calls owned by this recruiter
+        $query = Application::where(function($q) use ($request) {
+            // Applications for recruiter's projects
+            $q->whereHas('project', function($subQ) use ($request) {
+                $subQ->where('recruiter_id', $request->user()->id);
+            })
+            // OR applications for recruiter's casting calls
+            ->orWhereHas('castingCall', function($subQ) use ($request) {
+                $subQ->where('recruiter_id', $request->user()->id);
+            });
+        })->with(['talent.talentProfile', 'project', 'castingCall']);
 
         // Filter by status
         if ($request->has('status')) {
@@ -287,6 +327,11 @@ class ApplicationController extends Controller
         // Filter by project
         if ($request->has('project_id')) {
             $query->where('project_id', $request->project_id);
+        }
+
+        // Filter by casting call
+        if ($request->has('casting_call_id')) {
+            $query->where('casting_call_id', $request->casting_call_id);
         }
 
         $applications = $query->orderByDesc('created_at')->paginate(15);

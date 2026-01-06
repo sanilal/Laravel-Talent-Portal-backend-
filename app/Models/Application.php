@@ -143,6 +143,16 @@ class Application extends Model
         return $this->status === self::STATUS_SHORTLISTED;
     }
 
+    public function canBeWithdrawn(): bool
+    {
+        return in_array($this->status, [self::STATUS_PENDING, self::STATUS_UNDER_REVIEW]);
+    }
+
+    public function canBeEdited(): bool
+    {
+        return $this->status === self::STATUS_PENDING;
+    }
+
     public function markAsRead(): void
     {
         if (!$this->is_read) {
@@ -151,6 +161,55 @@ class Application extends Model
                 'read_at' => now(),
             ]);
         }
+    }
+
+    public function updateStatus(string $status, ?string $notes = null): bool
+    {
+        $validStatuses = [
+            self::STATUS_PENDING,
+            self::STATUS_UNDER_REVIEW,
+            self::STATUS_SHORTLISTED,
+            self::STATUS_INTERVIEW_SCHEDULED,
+            self::STATUS_ACCEPTED,
+            self::STATUS_REJECTED,
+            self::STATUS_WITHDRAWN,
+        ];
+
+        if (!in_array($status, $validStatuses)) {
+            return false;
+        }
+
+        $updates = ['status' => $status];
+
+        // Set timestamps based on status
+        switch ($status) {
+            case self::STATUS_UNDER_REVIEW:
+                $updates['reviewed_at'] = now();
+                break;
+            case self::STATUS_SHORTLISTED:
+                $updates['shortlisted_at'] = now();
+                break;
+            case self::STATUS_INTERVIEW_SCHEDULED:
+                $updates['interview_scheduled_at'] = now();
+                break;
+            case self::STATUS_ACCEPTED:
+                $updates['accepted_at'] = now();
+                $updates['responded_at'] = now();
+                break;
+            case self::STATUS_REJECTED:
+                $updates['rejected_at'] = now();
+                $updates['responded_at'] = now();
+                break;
+            case self::STATUS_WITHDRAWN:
+                $updates['withdrawn_at'] = now();
+                break;
+        }
+
+        if ($notes) {
+            $updates['recruiter_notes'] = $notes;
+        }
+
+        return $this->update($updates);
     }
 
     public function accept(?string $feedback = null): bool
