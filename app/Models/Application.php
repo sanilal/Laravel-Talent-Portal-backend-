@@ -43,6 +43,15 @@ class Application extends Model
         'referral_code',
         'metadata',
         'is_read',
+        'read_at',
+        'viewed_at',
+        'reviewed_at',
+        'shortlisted_at',
+        'interview_scheduled_at',
+        'accepted_at',
+        'rejected_at',
+        'responded_at',
+        'withdrawn_at',
     ];
 
     protected $casts = [
