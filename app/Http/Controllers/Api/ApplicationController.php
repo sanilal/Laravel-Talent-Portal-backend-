@@ -135,6 +135,9 @@ class ApplicationController extends Controller
             'status' => 'required|in:pending,under_review,shortlisted,interview_scheduled,accepted,rejected,withdrawn',
             'notes' => 'nullable|string|max:2000',
             'feedback' => 'nullable|string|max:2000',
+            'interview_date' => 'nullable|date',
+            'interview_location' => 'nullable|string|max:500',
+            'interview_type' => 'nullable|in:in-person,video,phone',
         ]);
 
         if ($validator->fails()) {
@@ -178,6 +181,24 @@ class ApplicationController extends Controller
         // Add feedback to talent if provided
         if ($request->feedback) {
             $application->update(['feedback_to_talent' => $request->feedback]);
+        }
+
+        // Add interview details if status is interview_scheduled
+        if ($request->status === 'interview_scheduled') {
+            $interviewData = [];
+            if ($request->interview_date) {
+                $interviewData['interview_date'] = $request->interview_date;
+            }
+            if ($request->interview_location) {
+                $interviewData['interview_location'] = $request->interview_location;
+            }
+            if ($request->interview_type) {
+                $interviewData['interview_type'] = $request->interview_type;
+            }
+
+            if (!empty($interviewData)) {
+                $application->update($interviewData);
+            }
         }
 
         // Mark as read by recruiter
