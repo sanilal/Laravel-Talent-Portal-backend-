@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -113,6 +114,16 @@ class Application extends Model
     public function media(): MorphMany
     {
         return $this->morphMany(Media::class, 'mediable');
+    }
+
+    public function selectedRoles(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            CastingCallRequirement::class,
+            'application_casting_call_requirement',
+            'application_id',
+            'casting_call_requirement_id'
+        )->withTimestamps();
     }
 
     // Query Scopes

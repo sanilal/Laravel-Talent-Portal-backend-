@@ -376,6 +376,7 @@ class ApplicationController extends Controller
                 'castingCall.recruiter',
                 'castingCall.genre',
                 'castingCall.projectType',
+                'selectedRoles',
             ])
             ->first();
 
