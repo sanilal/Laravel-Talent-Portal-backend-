@@ -364,6 +364,33 @@ class ApplicationController extends Controller
     }
 
     /**
+     * Check if user has already applied to a casting call
+     * GET /api/v1/casting-calls/{id}/my-application
+     */
+    public function getMyApplication(Request $request, $id)
+    {
+        // Check if user (talent) has already applied to this casting call
+        $application = Application::where('casting_call_id', $id)
+            ->where('talent_id', $request->user()->id)
+            ->with([
+                'castingCall.recruiter',
+                'castingCall.genre',
+                'castingCall.projectType',
+            ])
+            ->first();
+
+        if (!$application) {
+            return response()->json([
+                'message' => 'You have not applied to this casting call yet',
+            ], 404);
+        }
+
+        return response()->json([
+            'application' => $application,
+        ]);
+    }
+
+    /**
      * Apply to a project (for talents)
      * POST /api/v1/projects/{id}/apply
      */

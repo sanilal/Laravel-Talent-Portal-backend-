@@ -578,6 +578,12 @@ Route::prefix('v1')->group(function () {
         // Casting Calls (Apply - For Talents)
         Route::prefix('casting-calls')->name('casting-calls.')->group(function () {
             /**
+             * GET /api/v1/casting-calls/{id}/my-application
+             * Check if authenticated user has already applied to this casting call
+             */
+            Route::get('/{id}/my-application', [ApplicationController::class, 'getMyApplication'])->name('my-application');
+
+            /**
              * POST /api/v1/casting-calls/{id}/apply
              * Apply to a casting call (talents only)
              */
