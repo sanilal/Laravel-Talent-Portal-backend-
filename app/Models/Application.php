@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -43,6 +44,15 @@ class Application extends Model
         'referral_code',
         'metadata',
         'is_read',
+        'read_at',
+        'viewed_at',
+        'reviewed_at',
+        'shortlisted_at',
+        'interview_scheduled_at',
+        'accepted_at',
+        'rejected_at',
+        'responded_at',
+        'withdrawn_at',
     ];
 
     protected $casts = [
@@ -106,6 +116,16 @@ class Application extends Model
         return $this->morphMany(Media::class, 'mediable');
     }
 
+    public function selectedRoles(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            CastingCallRequirement::class,
+            'application_casting_call_requirement',
+            'application_id',
+            'casting_call_requirement_id'
+        )->withTimestamps();
+    }
+
     // Query Scopes
     public function scopePending($query)
     {
@@ -143,6 +163,16 @@ class Application extends Model
         return $this->status === self::STATUS_SHORTLISTED;
     }
 
+    public function canBeWithdrawn(): bool
+    {
+        return in_array($this->status, [self::STATUS_PENDING, self::STATUS_UNDER_REVIEW]);
+    }
+
+    public function canBeEdited(): bool
+    {
+        return $this->status === self::STATUS_PENDING;
+    }
+
     public function markAsRead(): void
     {
         if (!$this->is_read) {
@@ -151,6 +181,55 @@ class Application extends Model
                 'read_at' => now(),
             ]);
         }
+    }
+
+    public function updateStatus(string $status, ?string $notes = null): bool
+    {
+        $validStatuses = [
+            self::STATUS_PENDING,
+            self::STATUS_UNDER_REVIEW,
+            self::STATUS_SHORTLISTED,
+            self::STATUS_INTERVIEW_SCHEDULED,
+            self::STATUS_ACCEPTED,
+            self::STATUS_REJECTED,
+            self::STATUS_WITHDRAWN,
+        ];
+
+        if (!in_array($status, $validStatuses)) {
+            return false;
+        }
+
+        $updates = ['status' => $status];
+
+        // Set timestamps based on status
+        switch ($status) {
+            case self::STATUS_UNDER_REVIEW:
+                $updates['reviewed_at'] = now();
+                break;
+            case self::STATUS_SHORTLISTED:
+                $updates['shortlisted_at'] = now();
+                break;
+            case self::STATUS_INTERVIEW_SCHEDULED:
+                $updates['interview_scheduled_at'] = now();
+                break;
+            case self::STATUS_ACCEPTED:
+                $updates['accepted_at'] = now();
+                $updates['responded_at'] = now();
+                break;
+            case self::STATUS_REJECTED:
+                $updates['rejected_at'] = now();
+                $updates['responded_at'] = now();
+                break;
+            case self::STATUS_WITHDRAWN:
+                $updates['withdrawn_at'] = now();
+                break;
+        }
+
+        if ($notes) {
+            $updates['recruiter_notes'] = $notes;
+        }
+
+        return $this->update($updates);
     }
 
     public function accept(?string $feedback = null): bool

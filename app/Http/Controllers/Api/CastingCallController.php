@@ -636,6 +636,8 @@ class CastingCallController extends Controller
                 'portfolio_links.*' => 'url',
                 'available_from' => 'nullable|date',
                 'available_until' => 'nullable|date|after_or_equal:available_from',
+                'selected_roles' => 'required|array|min:1',
+                'selected_roles.*' => 'uuid|exists:casting_call_requirements,id',
             ]);
 
             // Prepare attachments array for files
@@ -689,10 +691,15 @@ class CastingCallController extends Controller
                 'status' => 'pending',
             ]);
 
+            // Attach selected roles to the application
+            if (!empty($validated['selected_roles'])) {
+                $application->selectedRoles()->attach($validated['selected_roles']);
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'Application submitted successfully',
-                'data' => $application->load('castingCall'),
+                'data' => $application->load(['castingCall', 'selectedRoles']),
             ], 201);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
